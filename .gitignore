@@ -1,0 +1,43 @@
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+dist/
+build/
+server/public/
+*.log
+.DS_Store
+Thumbs.db
+
+# local dev data (sqlite db, thumbnails, logs) - never commit generated state
+server/data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# env
+.env
+.env.local
+.keys/
+plugins/optional/com.memorylane.ai-runtime/bin/
+plugins/optional/com.memorylane.apple-photos/bin/
+# Generated only after native plugin binaries are signed on this machine.
+plugins/.signed-*
+
+# native desktop tray generated runtime and release artifacts
+tray-go/runtime/
+tray-go/tray.exe
+tray-go/release/
+tray-go/bundled-plugins/
+tray-go/.cache/
+tray-go/release-phase*/
+tray-go/probe*/
+tray-go/electron-probe*/
+tray-go/*smoke-*/
+
+# isolated development worktrees
+.worktrees/
+
+# generated from server/package.json by scripts/generate-version.mjs
+server/src/version.ts

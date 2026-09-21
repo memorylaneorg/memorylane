@@ -1,0 +1,45 @@
+{
+  "name": "memorylane",
+  "private": true,
+  "version": "1.0.6",
+  "description": "Self-hosted photo and video browser for rediscovering existing photo archives.",
+  "license": "MIT",
+  "workspaces": [
+    "plugin-sdk",
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "build": "npm run build --workspace=plugin-sdk && npm run build --workspace=shared && npm run build --workspace=client && npm run build --workspace=server",
+    "start": "npm run start --workspace=server",
+    "reset-password": "npm run reset-password --workspace=server --",
+    "test": "npm run build --workspace=plugin-sdk && npm run test --workspace=plugin-sdk && npm run test --workspace=server",
+    "typecheck": "npm run boundaries:check && npm run build --workspace=plugin-sdk && npm run build --workspace=shared && npm run typecheck --workspace=plugin-sdk && npm run typecheck --workspace=shared && npm run typecheck --workspace=server && npm run typecheck --workspace=client",
+    "boundaries:check": "node scripts/check-core-plugin-boundaries.mjs",
+    "ai": "node scripts/run-ai.mjs",
+    "package:size": "node scripts/report-package-size.mjs",
+    "plugins:build": "node scripts/build-plugin-repository.mjs",
+    "plugins:verify": "node scripts/verify-plugin-repository.mjs",
+    "plugins:publish": "node scripts/publish-release.mjs catalog",
+    "desktop:publish-update": "node scripts/publish-release.mjs update",
+    "plugins:sign-native": "node scripts/sign-native-plugins.mjs",
+    "plugins:prepare-ai-runtime": "node scripts/prepare-ai-runtime-plugin.mjs",
+    "plugins:prepare-apple-photos": "node scripts/prepare-apple-photos-plugin.mjs",
+    "plugins:keygen": "node scripts/generate-plugin-signing-key.mjs",
+    "version:bump": "node scripts/bump-version.mjs",
+    "desktop:runtime": "node tray-go/scripts/prepare-runtime.mjs",
+    "desktop:package": "powershell -ExecutionPolicy Bypass -File tray-go/scripts/package-windows.ps1",
+    "desktop:installer": "powershell -ExecutionPolicy Bypass -File tray-go/scripts/package-windows.ps1 -Installer",
+    "desktop:update-manifest": "node scripts/build-core-update-manifest.mjs",
+    "build:windows-install": "node scripts/build-windows-install.mjs",
+    "build:mac-install": "node scripts/build-mac-install.mjs"
+  },
+  "devDependencies": {
+    "@types/yazl": "^3.3.1",
+    "extract-zip": "^2.0.1",
+    "yazl": "^3.3.1"
+  }
+}

@@ -1,0 +1,3 @@
+MemoryLane AI Search & Similar is distributed under the MemoryLane MIT License.
+Its inference models are provided by AI Runtime under the separate terms listed
+in that plugin and in THIRD_PARTY_NOTICES.md.

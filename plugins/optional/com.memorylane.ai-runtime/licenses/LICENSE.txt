@@ -1,0 +1,16 @@
+MemoryLane AI Runtime is distributed under the MemoryLane MIT License.
+
+The runtime bundles or installs FastAPI, Uvicorn, ONNX Runtime, NumPy, Pillow,
+Hugging Face Hub, Tokenizers, python-multipart, certifi, and their transitive
+dependencies under their respective licenses. Native builds must include the
+license report generated from the resolved Python environment.
+
+Downloaded model files remain under separate terms:
+- Xenova/OpenAI CLIP ViT-B/32: upstream model-card and OpenAI CLIP terms.
+- OpenCV Zoo YuNet: MIT.
+- OpenCV Zoo SFace: Apache-2.0 repository/model notice; review model-weight and
+  training-data terms independently for commercial redistribution.
+- InsightFace buffalo_l: non-commercial research use only unless separately
+  licensed by InsightFace. It must be selected and accepted explicitly.
+
+See THIRD_PARTY_NOTICES.md in the MemoryLane source distribution.

@@ -1,0 +1,4 @@
+MemoryLane People is distributed under the MemoryLane MIT License. Face models
+are provided by AI Runtime and remain under the separate model terms listed in
+that plugin and in THIRD_PARTY_NOTICES.md. InsightFace buffalo_l is restricted
+to non-commercial research use unless separately licensed.

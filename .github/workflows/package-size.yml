@@ -1,0 +1,47 @@
+name: Package size
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tray-go/**"
+      - "server/package.json"
+      - "scripts/report-package-size.mjs"
+      - ".github/workflows/package-size.yml"
+
+jobs:
+  measure:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-14, macos-13]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.x"
+      - run: npm ci
+      - run: npm run build
+      - if: runner.os == 'Windows'
+        run: npm run desktop:package
+      - if: runner.os == 'macOS'
+        run: bash tray-go/scripts/package-macos.sh
+      - name: Report package size
+        shell: bash
+        run: node scripts/report-package-size.mjs tray-go/release --json > package-size.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-size-${{ matrix.os }}
+          path: package-size.json
+
+      # Turn this into a normal blocking step in Phase 5 after ExifTool,
+      # FFmpeg, and FFprobe leave core. It is intentionally informative while
+      # the checked-in baseline is known to exceed the final 200 MiB target.
+      - name: Check final 200 MiB gate
+        if: ${{ false }}
+        run: node scripts/report-package-size.mjs tray-go/release --enforce

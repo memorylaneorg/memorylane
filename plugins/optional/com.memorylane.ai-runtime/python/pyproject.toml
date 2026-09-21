@@ -1,0 +1,29 @@
+[project]
+name = "memorylane-ai"
+version = "0.1.0"
+description = "Local inference service for MemoryLane image/text embeddings and face analysis."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "onnxruntime>=1.20",
+  "numpy>=1.26",
+  "pillow>=10",
+  "tokenizers>=0.19",
+  "huggingface_hub>=0.24",
+  "python-multipart>=0.0.9",
+  "certifi>=2024.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[project.scripts]
+memorylane-ai = "memorylane_ai.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["memorylane_ai*"]

@@ -1,0 +1,44 @@
+name: Plugin repository
+
+on:
+  pull_request:
+    paths:
+      - "plugin-sdk/**"
+      - "plugins/**"
+      - "scripts/build-plugin-repository.mjs"
+      - "scripts/verify-plugin-repository.mjs"
+      - ".github/workflows/plugin-repository.yml"
+  workflow_dispatch:
+
+jobs:
+  verify-development-repository:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win32-x64
+          - os: macos-13
+            platform: darwin-x64
+          - os: macos-14
+            platform: darwin-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - run: npm run build --workspace=plugin-sdk
+      - run: npm run plugins:prepare-required
+      - run: npm run plugins:prepare-ai-runtime
+      - run: npm run plugins:prepare-apple-photos
+      - run: node scripts/build-plugin-repository.mjs stable development ${{ matrix.platform }}
+      - run: npm run plugins:verify -- dist/plugin-repository/v1/stable
+      - uses: actions/upload-artifact@v4
+        with:
+          name: development-plugin-repository-${{ matrix.platform }}
+          path: dist/plugin-repository/v1/stable

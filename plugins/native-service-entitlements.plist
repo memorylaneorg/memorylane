@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- PyInstaller extracts Python and native extension libraries at launch.
+       Release signing gives the launcher a Developer ID Team ID while those
+       embedded libraries retain their own identity, so hardened runtime must
+       allow the launcher to load them. -->
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+</dict>
+</plist>

@@ -1,0 +1,13 @@
+{
+  "id": "com.memorylane.fixture-module",
+  "name": "Fixture Module",
+  "description": "Small first-party module used to verify plugin repository releases.",
+  "version": "1.0.0",
+  "pluginApi": 1,
+  "requiresCore": ">=0.1.0 <1.0.0",
+  "required": false,
+  "entry": { "kind": "module", "script": "module/index.mjs" },
+  "capabilities": ["fixture.echo"],
+  "dependencies": [],
+  "licenseFiles": ["licenses/LICENSE.txt"]
+}

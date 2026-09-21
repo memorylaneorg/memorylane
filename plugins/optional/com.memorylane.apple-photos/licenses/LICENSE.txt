@@ -1,0 +1,4 @@
+MemoryLane Apple Photos integration is distributed under the MemoryLane MIT
+License. Native artifacts include osxphotos and its resolved Python dependency
+set under their respective licenses. The platform build must include the
+license report generated from that resolved environment.
