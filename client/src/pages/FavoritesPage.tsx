@@ -5,10 +5,12 @@ import MediaGrid from "../components/MediaGrid";
 import MediaTypeFilter from "../components/MediaTypeFilter";
 import Viewer from "../components/Viewer";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
+import { useTranslation } from "react-i18next";
 
 const PAGE_SIZE = 200;
 
 export default function FavoritesPage() {
+  const { t } = useTranslation();
   const [media, setMedia] = useState<MediaDto[] | null>(null);
   const [mediaTotal, setMediaTotal] = useState(0);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -52,15 +54,15 @@ export default function FavoritesPage() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="font-serif text-2xl font-semibold text-ink">Favorites</h1>
+        <h1 className="font-serif text-2xl font-semibold text-ink">{t("pages.favorites")}</h1>
         <MediaTypeFilter value={mediaType} onChange={changeMediaType} />
       </div>
 
-      {media === null && <p className="text-sm text-muted">Loading...</p>}
+      {media === null && <p className="text-sm text-muted">{t("common.loading")}</p>}
       {media && media.length === 0 && (
         <p className="text-sm text-muted">
           {mediaType === "all"
-            ? "No favorites yet - star a photo from the viewer or from a folder grid to see it here."
+            ? t("pages.noFavorites")
             : `No favorite ${mediaType === "photo" ? "photos" : "videos"} yet.`}
         </p>
       )}

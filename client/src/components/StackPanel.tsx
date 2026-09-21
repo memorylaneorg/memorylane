@@ -5,6 +5,7 @@ import Modal from "./Modal";
 import MediaGrid from "./MediaGrid";
 import Viewer from "./Viewer";
 import { useConfirm } from "./ConfirmDialog";
+import { useTranslation } from "react-i18next";
 
 interface StackPanelProps {
   stackId: number;
@@ -21,6 +22,7 @@ const buttonClass =
 // operations from design doc §8.5. Members are shown in stack order; the
 // cover is marked by its badge in the grid.
 export default function StackPanel({ stackId, onClose, onChanged }: StackPanelProps) {
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<StackDetailDto | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -66,7 +68,7 @@ export default function StackPanel({ stackId, onClose, onChanged }: StackPanelPr
       setSelected(new Set());
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong");
+      setError(err instanceof ApiError ? err.message : t("stacks.error"));
     } finally {
       setBusy(false);
     }
@@ -77,8 +79,8 @@ export default function StackPanel({ stackId, onClose, onChanged }: StackPanelPr
   const isCover = (id: number) => detail?.stack.coverMediaId === id;
 
   return (
-    <Modal title={detail ? `Stack · ${detail.stack.count} photos · ${detail.stack.kind}` : "Stack"} onClose={onClose} wide>
-      {!detail && <p className="text-sm text-muted">Loading...</p>}
+    <Modal title={detail ? t("stacks.titleDetail", { count: detail.stack.count, kind: detail.stack.kind }) : t("stacks.title")} onClose={onClose} wide>
+      {!detail && <p className="text-sm text-muted">{t("common.loading")}</p>}
       {detail && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -87,23 +89,23 @@ export default function StackPanel({ stackId, onClose, onChanged }: StackPanelPr
               onClick={() => setViewerIndex(ids.length ? Math.max(0, items.findIndex((m) => m.id === ids[0])) : 0)}
               disabled={busy || items.length === 0}
             >
-              View
+              {t("stacks.view")}
             </button>
             <button
               className={buttonClass}
               disabled={busy || ids.length !== 1 || isCover(ids[0])}
               onClick={() => void run(() => api.stacks.setCover(stackId, ids[0]))}
-              title="Use the selected photo as this stack's cover"
+              title={t("stacks.setCoverHelp")}
             >
-              Set as cover
+              {t("stacks.setCover")}
             </button>
             <button
               className={buttonClass}
               disabled={busy || ids.length < 2 || ids.length >= items.length}
               onClick={() => void run(() => api.stacks.split(stackId, ids))}
-              title="Move the selected photos into their own stack"
+              title={t("stacks.splitHelp")}
             >
-              Split into new stack
+              {t("stacks.split")}
             </button>
             <button
               className={buttonClass}
@@ -115,9 +117,9 @@ export default function StackPanel({ stackId, onClose, onChanged }: StackPanelPr
                   return last;
                 }, true)
               }
-              title="Remove the selected photos from this stack (they won't be auto-stacked again)"
+              title={t("stacks.removeHelp")}
             >
-              Remove from stack
+              {t("stacks.remove")}
             </button>
             <button
               className={`${buttonClass} ml-auto text-red-600`}
@@ -125,9 +127,9 @@ export default function StackPanel({ stackId, onClose, onChanged }: StackPanelPr
               onClick={async () => {
                 if (
                   await confirm({
-                    title: "Delete this stack?",
-                    message: "The photos stay in your library - they just won't be grouped, and won't be auto-stacked again.",
-                    confirmLabel: "Delete stack",
+                    title: t("stacks.deleteTitle"),
+                    message: t("stacks.deleteMessage"),
+                    confirmLabel: t("stacks.delete"),
                     danger: true,
                   })
                 ) {
@@ -138,12 +140,12 @@ export default function StackPanel({ stackId, onClose, onChanged }: StackPanelPr
                 }
               }}
             >
-              Delete stack
+              {t("stacks.delete")}
             </button>
           </div>
           <p className="text-xs text-muted">
-            {ids.length === 0 ? "Click photos to select them." : `${ids.length} selected.`}
-            {detail.stack.userModified ? " Edited by you - automatic re-stacking leaves this stack alone." : " Grouped automatically."}
+            {ids.length === 0 ? t("stacks.selectHelp") : t("stacks.selected", { count: ids.length })}
+            {" "}{detail.stack.userModified ? t("stacks.edited") : t("stacks.automatic")}
           </p>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <MediaGrid items={items} onOpen={setViewerIndex} selectable selectedIds={selected} onToggleSelect={toggle} />

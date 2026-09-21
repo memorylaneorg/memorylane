@@ -11,6 +11,7 @@ import { usePluginActive } from "../utils/plugins";
 import { ApplePreviewNotice } from "./ApplePreviewNotice";
 import { OriginalUnavailableNotice } from "./OriginalUnavailableNotice";
 import TagEditor from "./TagEditor";
+import { useTranslation } from "react-i18next";
 
 interface ViewerProps {
   items: MediaDto[];
@@ -30,6 +31,7 @@ interface ViewerProps {
 const SLIDESHOW_INTERVAL_MS = 5000;
 
 export default function Viewer({ items, startIndex, onClose, autoPlay = false, total, onRequestMore }: ViewerProps) {
+  const { t } = useTranslation();
   const [index, setIndex] = useState(startIndex);
   const [fallback, setFallback] = useState(false);
   const [playing, setPlaying] = useState(autoPlay);
@@ -322,7 +324,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
           <button
             className={`grid place-items-center ${controlButtonClass}`}
             onClick={toggleFavorite}
-            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            aria-label={isFavorite ? t("viewer.unfavorite") : t("viewer.favorite")}
             aria-pressed={isFavorite}
           >
             <Star
@@ -338,13 +340,13 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
                 onClose();
                 navigate(`/similar/${current.id}`);
               }}
-              aria-label="Find similar photos"
-              title="Find similar photos (AI)"
+              aria-label={t("viewer.similar")}
+              title={t("viewer.similar")}
             >
               <Sparkles size={16} strokeWidth={1.8} />
             </button>
           )}
-          <button className={controlButtonClass} onClick={onClose} aria-label="Close">
+          <button className={controlButtonClass} onClick={onClose} aria-label={t("viewer.close")}>
             ✕
           </button>
         </div>
@@ -362,7 +364,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
         <button
           className={`absolute top-1/2 left-5 -translate-y-1/2 ${controlButtonClass}`}
           onClick={goPrev}
-          aria-label="Previous"
+          aria-label={t("viewer.previous")}
         >
           ‹
         </button>
@@ -426,7 +428,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
             <button
               onClick={() => setLivePlaying(true)}
               className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-overlay-control px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-overlay-control-hover"
-              aria-label="Play Live Photo"
+              aria-label={t("viewer.playLive")}
             >
               ◉ LIVE
             </button>
@@ -442,7 +444,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
               className={`absolute left-3 flex items-center gap-1 rounded-full bg-overlay-control px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-overlay-control-hover ${
                 current.livePhotoVideoId != null ? "top-12" : "top-3"
               }`}
-              aria-label="Open original RAW file"
+              aria-label={t("viewer.openRaw")}
             >
               RAW
             </a>
@@ -452,7 +454,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
         <button
           className={`absolute top-1/2 right-5 -translate-y-1/2 ${controlButtonClass}`}
           onClick={goNext}
-          aria-label="Next"
+          aria-label={t("viewer.next")}
         >
           ›
         </button>
@@ -471,8 +473,8 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
                 <button
                   onClick={zoomOut}
                   disabled={zoom <= ZOOM_MIN}
-                  aria-label="Zoom out"
-                  title="Zoom out"
+                  aria-label={t("viewer.zoomOut")}
+                  title={t("viewer.zoomOut")}
                   className="text-white disabled:opacity-40"
                 >
                   <ZoomOut size={16} strokeWidth={1.8} />
@@ -480,8 +482,8 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
                 <button
                   onClick={zoomIn}
                   disabled={zoom >= ZOOM_MAX}
-                  aria-label="Zoom in"
-                  title="Zoom in"
+                  aria-label={t("viewer.zoomIn")}
+                  title={t("viewer.zoomIn")}
                   className="text-white disabled:opacity-40"
                 >
                   <ZoomIn size={16} strokeWidth={1.8} />
@@ -510,20 +512,20 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
           <button
             onClick={() => setShowInfo(false)}
             className="absolute top-4 right-4 text-white/70 hover:text-white"
-            aria-label="Close info"
+            aria-label={t("viewer.closeInfo")}
           >
             <X size={18} strokeWidth={1.8} />
           </button>
-          <h2 className="mb-1 pr-8 text-base font-semibold">Info</h2>
+          <h2 className="mb-1 pr-8 text-base font-semibold">{t("viewer.info")}</h2>
           {current.capturedDate && <div>Taken: {new Date(current.capturedDate).toLocaleString()}</div>}
           {current.cameraMake && (
             <div>
-              Camera:{" "}
+              {t("viewer.camera")}:{" "}
               {current.cameraModel ? (
                 <button
                   onClick={() => openReport({ camera: current.cameraModel! })}
                   className={exifLinkClass}
-                  title="See every photo with this camera"
+                  title={t("viewer.cameraTitle")}
                 >
                   {current.cameraMake} {current.cameraModel}
                 </button>
@@ -534,11 +536,11 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
           )}
           {current.lensModel && (
             <div>
-              Lens:{" "}
+              {t("viewer.lens")}:{" "}
               <button
                 onClick={() => openReport({ lens: current.lensModel! })}
                 className={exifLinkClass}
-                title="See every photo with this lens"
+                title={t("viewer.lensTitle")}
               >
                 {current.lensModel}
               </button>
@@ -558,19 +560,19 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
                   <button
                     onClick={() => openReport({ focalMin: String(focalBucket.min), focalMax: String(focalBucket.max) })}
                     className={exifLinkClass}
-                    title="See every photo at this focal length"
+                    title={t("viewer.focalTitle")}
                   >
-                    Focal length: {current.focalLength} mm
+                    {t("viewer.focalLength", { value: current.focalLength })}
                   </button>
                 ) : (
-                  <span>Focal length: {current.focalLength} mm</span>
+                  <span>{t("viewer.focalLength", { value: current.focalLength })}</span>
                 )
               )}
               {current.aperture != null && (
                 <button
                   onClick={() => openReport({ apertureMin: apertureRounded!, apertureMax: apertureRounded! })}
                   className={exifLinkClass}
-                  title="See every photo at this aperture"
+                  title={t("viewer.apertureTitle")}
                 >
                   f/{current.aperture}
                 </button>
@@ -580,7 +582,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
                 <button
                   onClick={() => openReport({ isoMin: String(current.iso), isoMax: String(current.iso) })}
                   className={exifLinkClass}
-                  title="See every photo at this ISO"
+                  title={t("viewer.isoTitle")}
                 >
                   ISO {current.iso}
                 </button>
@@ -589,10 +591,10 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
           )}
           {current.width && current.height && (
             <div>
-              Dimensions: {current.width} × {current.height}
+              {t("viewer.dimensions", { width: current.width, height: current.height })}
             </div>
           )}
-          <div>Type: {current.mediaType.toUpperCase()}</div>
+          <div>{t("viewer.type", { type: current.mediaType.toUpperCase() })}</div>
           <div>Size: {formatBytes(current.fileSize)}</div>
           {current.durationSeconds != null && <div>Duration: {formatDuration(current.durationSeconds)}</div>}
           <div className="break-all text-white/70">Path: {current.absolutePath}</div>

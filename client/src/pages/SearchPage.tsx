@@ -5,13 +5,15 @@ import { api, ApiError } from "../api/client";
 import FolderCard from "../components/FolderCard";
 import MediaGrid from "../components/MediaGrid";
 import Viewer from "../components/Viewer";
+import { useTranslation } from "react-i18next";
 
-const MODES: { value: SearchMode; label: string; placeholder: string }[] = [
-  { value: "text", label: "Names", placeholder: "Search folders, filenames, camera, lens..." },
-  { value: "semantic", label: "Describe it (AI)", placeholder: "a bird taking off from water, a red car at night, snow on mountains..." },
+const MODES: { value: SearchMode; labelKey: string; placeholderKey: string }[] = [
+  { value: "text", labelKey: "pages.names", placeholderKey: "pages.textSearchPlaceholder" },
+  { value: "semantic", labelKey: "pages.describeAi", placeholderKey: "pages.aiSearchPlaceholder" },
 ];
 
 export default function SearchPage() {
+  const { t } = useTranslation();
   const [q, setQ] = useState("");
   const [mode, setMode] = useState<SearchMode>("text");
   const [results, setResults] = useState<SearchResultDto[] | null>(null);
@@ -27,7 +29,7 @@ export default function SearchPage() {
       setResults(res.items);
     } catch (err) {
       setResults(null);
-      setProblem(err instanceof ApiError && err.status === 503 ? err.message : "Search failed");
+      setProblem(err instanceof ApiError && err.status === 503 ? err.message : t("pages.searchFailed"));
     }
   };
 
@@ -45,7 +47,7 @@ export default function SearchPage() {
 
   return (
     <div>
-      <div className="mb-3 flex items-center gap-1 rounded-md border border-border p-0.5 text-sm w-fit" role="group" aria-label="Search mode">
+      <div className="mb-3 flex items-center gap-1 rounded-md border border-border p-0.5 text-sm w-fit" role="group" aria-label={t("pages.searchMode")}>
         {MODES.map((m) => (
           <button
             key={m.value}
@@ -58,7 +60,7 @@ export default function SearchPage() {
             aria-pressed={mode === m.value}
             className={`rounded px-3 py-1 transition-colors ${mode === m.value ? "bg-accent text-page" : "text-muted hover:bg-hover hover:text-ink"}`}
           >
-            {m.label}
+            {t(m.labelKey)}
           </button>
         ))}
       </div>
@@ -66,12 +68,12 @@ export default function SearchPage() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={MODES.find((m) => m.value === mode)?.placeholder}
+          placeholder={t(MODES.find((m) => m.value === mode)!.placeholderKey)}
           autoFocus
           className="flex-1 rounded-lg border border-border bg-surface px-3.5 py-2.5 text-ink outline-none focus:border-accent"
         />
         <button type="submit" className="rounded-lg bg-accent px-5 py-2.5 font-semibold text-page hover:opacity-90">
-          Search
+          {t("common.search")}
         </button>
       </form>
 
@@ -98,10 +100,10 @@ export default function SearchPage() {
 
       {mode === "text" && results && (
         <>
-          {textFolders.length === 0 && textMedia.length === 0 && <p className="text-sm text-muted">No results.</p>}
+          {textFolders.length === 0 && textMedia.length === 0 && <p className="text-sm text-muted">{t("pages.noResults")}</p>}
           {textFolders.length > 0 && (
             <section className="mb-8">
-              <h2 className="mb-3 text-sm font-semibold text-muted">Folders</h2>
+              <h2 className="mb-3 text-sm font-semibold text-muted">{t("pages.folders")}</h2>
               <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
                 {textFolders.map((folder) => (
                   <FolderCard key={folder.id} folder={folder} />
@@ -111,7 +113,7 @@ export default function SearchPage() {
           )}
           {textMedia.length > 0 && (
             <section>
-              <h2 className="mb-3 text-sm font-semibold text-muted">Photos &amp; Videos</h2>
+              <h2 className="mb-3 text-sm font-semibold text-muted">{t("pages.photosVideos")}</h2>
               <MediaGrid items={textMedia} onOpen={setViewerIndex} />
             </section>
           )}

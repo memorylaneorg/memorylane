@@ -1,4 +1,5 @@
 import type { MediaDto } from "@memorylane/shared";
+import i18n from "../i18n";
 
 // Approximate offline "nearest major city" lookup for the subtle photo
 // captions (e.g. "June 2007 · Chennai · 19 years ago"). This is deliberately
@@ -139,7 +140,7 @@ export function formatMemoryBlurb(media: Pick<MediaDto, "capturedDate" | "gpsLat
   if (media.capturedDate) {
     const date = new Date(media.capturedDate);
     if (!Number.isNaN(date.getTime())) {
-      parts.push(date.toLocaleDateString(undefined, { month: "long", year: "numeric" }));
+      parts.push(date.toLocaleDateString(i18n.resolvedLanguage, { month: "long", year: "numeric" }));
       capturedYear = date.getFullYear();
     }
   }
@@ -151,7 +152,7 @@ export function formatMemoryBlurb(media: Pick<MediaDto, "capturedDate" | "gpsLat
 
   if (capturedYear !== null) {
     const yearsAgo = new Date().getFullYear() - capturedYear;
-    if (yearsAgo >= 1) parts.push(`${yearsAgo} ${yearsAgo === 1 ? "year" : "years"} ago`);
+    if (yearsAgo >= 1) parts.push(i18n.t("common.yearsAgo", { count: yearsAgo }));
   }
 
   return parts.length > 0 ? parts.join(" · ") : null;

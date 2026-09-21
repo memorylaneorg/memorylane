@@ -69,7 +69,7 @@ Read [Plugin architecture](docs/architecture/plugins.md), [AI architecture](docs
 
 ## Privacy and network access
 
-MemoryLane binds to localhost by default. To allow access from other devices on the LAN, enable **Bind to all network interfaces** under **Settings → Service** and restart MemoryLane. `MEMORYLANE_BIND_ADDRESS` can still override the saved setting. The built-in HTTP server does not terminate TLS; use a trusted reverse proxy before exposing it outside a private network.
+MemoryLane binds to localhost by default. To allow access from other devices on the LAN, enable **Allow Access outside this computer** under **Settings → Network** and restart MemoryLane. `MEMORYLANE_BIND_ADDRESS` can still override the saved setting. The built-in HTTP server does not terminate TLS; use a trusted reverse proxy before exposing it outside a private network.
 
 ## Licensing
 

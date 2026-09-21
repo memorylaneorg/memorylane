@@ -11,24 +11,19 @@ import PluginsSettings from "../components/PluginsSettings";
 import ScanFoldersManager from "../components/ScanFoldersManager";
 import ApplePhotosSyncCard from "../components/ApplePhotosSyncCard";
 import { useConfirm } from "../components/ConfirmDialog";
+import { useTranslation } from "react-i18next";
+import { languagePreference, setLanguage, type SupportedLanguage } from "../i18n";
 
 const SETTINGS_TABS = [
-  { id: "folders", label: "Folders & Exclusions" },
-  { id: "analysis", label: "AI & Analysis" },
-  { id: "plugins", label: "Plugins" },
-  { id: "storage", label: "Storage" },
-  { id: "service", label: "Service" },
-  { id: "account", label: "Account" },
-  { id: "about", label: "About" },
+  { id: "folders", labelKey: "settings.folders" },
+  { id: "analysis", labelKey: "settings.analysis" },
+  { id: "plugins", labelKey: "settings.plugins" },
+  { id: "storage", labelKey: "settings.storage" },
+  { id: "network", labelKey: "settings.network" },
+  { id: "account", labelKey: "settings.account" },
+  { id: "about", labelKey: "settings.about" },
 ] as const;
 const THEME_ORDER: Theme[] = ["light", "dusk", "gallery", "dark"];
-
-const THEME_LABELS: Record<Theme, string> = {
-  light: "Light",
-  dark: "Dark",
-  dusk: "Dusk",
-  gallery: "Gallery",
-};
 
 // Small representative swatch colors per theme, just for the picker preview -
 // not tied to the live CSS variables since the picker needs to show all four
@@ -45,6 +40,7 @@ const buttonClass = "rounded-md border border-border px-3 py-1.5 text-sm text-in
 const accentButtonClass = "rounded-lg bg-accent px-5 py-2.5 font-semibold text-page hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
 
 function ChangePasswordForm() {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -58,7 +54,7 @@ function ChangePasswordForm() {
     setError(null);
     setSuccess(false);
     if (newPassword !== confirmPassword) {
-      setError("New passwords don't match");
+      setError(t("settingsUi.passwordMismatch"));
       return;
     }
     setSubmitting(true);
@@ -69,7 +65,7 @@ function ChangePasswordForm() {
       setConfirmPassword("");
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not change password");
+      setError(err instanceof ApiError ? err.message : t("settingsUi.passwordFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -78,7 +74,7 @@ function ChangePasswordForm() {
   if (!expanded) {
     return (
       <button onClick={() => setExpanded(true)} className="text-sm font-medium text-accent hover:underline">
-        Change password
+        {t("auth.changePassword")}
       </button>
     );
   }
@@ -88,7 +84,7 @@ function ChangePasswordForm() {
       <input
         type="password"
         autoComplete="current-password"
-        placeholder="Current password"
+        placeholder={t("auth.currentPassword")}
         value={currentPassword}
         onChange={(e) => setCurrentPassword(e.target.value)}
         required
@@ -97,7 +93,7 @@ function ChangePasswordForm() {
       <input
         type="password"
         autoComplete="new-password"
-        placeholder="New password (min. 8 characters)"
+        placeholder={t("settingsUi.newPasswordHint")}
         value={newPassword}
         onChange={(e) => setNewPassword(e.target.value)}
         minLength={8}
@@ -107,7 +103,7 @@ function ChangePasswordForm() {
       <input
         type="password"
         autoComplete="new-password"
-        placeholder="Confirm new password"
+        placeholder={t("settingsUi.confirmNewPassword")}
         value={confirmPassword}
         onChange={(e) => setConfirmPassword(e.target.value)}
         minLength={8}
@@ -115,10 +111,10 @@ function ChangePasswordForm() {
         className={inputClass}
       />
       {error && <p className="text-sm text-red-500">{error}</p>}
-      {success && <p className="text-sm text-green-600">Password changed. You'll stay signed in here; any other signed-in devices have been signed out.</p>}
+      {success && <p className="text-sm text-green-600">{t("settingsUi.passwordChanged")}</p>}
       <div className="flex items-center gap-3">
         <button type="submit" disabled={submitting} className={accentButtonClass}>
-          {submitting ? "Changing..." : "Change Password"}
+          {submitting ? t("settingsUi.changing") : t("auth.changePassword")}
         </button>
         <button
           type="button"
@@ -132,7 +128,7 @@ function ChangePasswordForm() {
           }}
           className="text-sm text-muted hover:text-ink"
         >
-          Cancel
+          {t("common.cancel")}
         </button>
       </div>
     </form>
@@ -140,6 +136,7 @@ function ChangePasswordForm() {
 }
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = SETTINGS_TABS.find((tab) => tab.id === searchParams.get("tab"))?.id ?? "folders";
@@ -165,15 +162,13 @@ export default function SettingsPage() {
     const target = movePath.trim();
     if (!target) return;
     const ok = await confirm({
-      title: "Move MemoryLane's data?",
+      title: t("settingsUi.moveTitle"),
       message: (
         <>
-          Everything (database, thumbnails, previews, vectors, face crops) is copied to <code className="text-ink">{target}</code> now - about a
-          minute per GB, and MemoryLane keeps working meanwhile. Afterwards you restart it to use the new location; the old copy stays until
-          you delete it.
+          {t("settingsUi.moveMessageBefore")} <code className="text-ink">{target}</code> {t("settingsUi.moveMessageAfter")}
         </>
       ),
-      confirmLabel: "Copy data",
+      confirmLabel: t("settingsUi.copyData"),
     });
     if (!ok) return;
     setMoving(true);
@@ -184,7 +179,7 @@ export default function SettingsPage() {
       setMovePath("");
       await loadStorage();
     } catch (err) {
-      setMoveError(err instanceof ApiError ? err.message : "Move failed");
+      setMoveError(err instanceof ApiError ? err.message : t("settingsUi.moveFailed"));
     } finally {
       setMoving(false);
     }
@@ -202,7 +197,7 @@ export default function SettingsPage() {
   const [recomputeMsg, setRecomputeMsg] = useState<string | null>(null);
   const recomputeStacks = async () => {
     const res = await api.stacks.recompute();
-    setRecomputeMsg(`Recomputed stacks in ${res.folders} folder(s).`);
+    setRecomputeMsg(t("settingsUi.recomputed", { count: res.folders }));
   };
 
   const retryAnalysis = async () => {
@@ -234,7 +229,7 @@ export default function SettingsPage() {
       setStorage(await api.settings.storage());
       setStorageError(null);
     } catch (err) {
-      setStorageError(err instanceof Error ? err.message : "Could not load storage usage");
+      setStorageError(err instanceof Error ? err.message : t("settingsUi.storageFailed"));
     } finally {
       setStorageLoading(false);
     }
@@ -278,7 +273,7 @@ export default function SettingsPage() {
       const st = await api.scans.status();
       setStatus(st);
     } catch (err) {
-      setScheduleError(err instanceof ApiError ? err.message : "Could not start scan");
+      setScheduleError(err instanceof ApiError ? err.message : t("scanning.scanFailed"));
     }
   };
 
@@ -299,14 +294,14 @@ export default function SettingsPage() {
     if (patch.aiEnabled !== undefined || patch.personsEnabled !== undefined) setAnalysisKey((k) => k + 1);
   };
 
-  if (!settings) return <p className="text-sm text-muted">Loading...</p>;
+  if (!settings) return <p className="text-sm text-muted">{t("common.loading")}</p>;
 
   return (
     <div className="flex flex-col gap-10">
-      <h1 className="font-serif text-2xl font-semibold text-ink">Settings</h1>
+      <h1 className="font-serif text-2xl font-semibold text-ink">{t("settings.title")}</h1>
 
       <div className="flex flex-col gap-4 border-b border-border sm:flex-row sm:items-end sm:justify-between">
-        <div role="tablist" aria-label="Settings sections" className="order-2 flex min-w-0 gap-5 overflow-x-auto sm:order-1">
+        <div role="tablist" aria-label={t("settings.sections")} className="order-2 flex min-w-0 gap-5 overflow-x-auto sm:order-1">
           {SETTINGS_TABS.map((tab, index) => (
             <button
               key={tab.id}
@@ -329,32 +324,47 @@ export default function SettingsPage() {
               }}
               className={`shrink-0 border-b-2 px-1 pb-3 pt-2 text-sm font-medium transition-colors focus-visible:outline-accent ${activeTab === tab.id ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink"}`}
             >
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
-        <fieldset className="order-1 shrink-0 self-end pb-3 sm:order-2">
-          <legend className="mb-2 text-xs font-medium text-ink">Theme</legend>
+        <div className="order-1 flex shrink-0 items-end gap-4 self-end pb-3 sm:order-2">
+        <label className="text-xs font-medium text-ink">
+          <span className="mb-2 block">{t("common.language")}</span>
+          <select
+            value={languagePreference()}
+            onChange={(event) => void setLanguage(event.target.value as SupportedLanguage | "system")}
+            className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-ink"
+            aria-label={t("common.language")}
+          >
+            <option value="system">{t("common.systemDefault")}</option>
+            <option value="en">English</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+          </select>
+        </label>
+        <fieldset className="text-xs font-medium text-ink">
+          <legend className="mb-2">{t("settings.theme")} <span className="font-normal text-muted">· {t(`settingsUi.theme.${theme}`)}</span></legend>
           <div className="flex gap-2">
             {THEME_ORDER.map((value) => (
-              <label key={value} title={THEME_LABELS[value]} className="cursor-pointer">
+              <label key={value} title={t(`settingsUi.theme.${value}`)} className="cursor-pointer">
                 <input type="radio" name="theme" value={value} checked={theme === value}
-                  onChange={() => setTheme(value)} aria-label={THEME_LABELS[value]} className="peer sr-only" />
+                  onChange={() => setTheme(value)} aria-label={t(`settingsUi.theme.${value}`)} className="peer sr-only" />
                 <span className="grid size-8 place-items-center rounded-full border border-border transition peer-checked:border-ink peer-checked:ring-2 peer-checked:ring-border peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-accent">
                   <span className="size-5 rounded-full border border-black/10" style={{ background: THEME_SWATCHES[value].page }} />
                 </span>
               </label>
             ))}
           </div>
-          <p className="mt-1.5 text-xs text-muted">{THEME_LABELS[theme]}</p>
         </fieldset>
+        </div>
       </div>
 
       <div role="tabpanel" id="settings-panel-folders" aria-labelledby="settings-tab-folders" hidden={activeTab !== "folders"} tabIndex={0} className="space-y-8 focus-visible:outline-accent">
       <section>
-        <h2 className="mb-3 font-serif text-lg font-semibold text-ink">Scan Folders</h2>
+        <h2 className="mb-3 font-serif text-lg font-semibold text-ink">{t("settings.scanFolders")}</h2>
         <p className="mb-3 text-sm text-muted">
-          Add folders containing your photos and videos. MemoryLane never modifies, renames, or moves originals.
+          {t("settingsUi.scanFoldersHelp")}
         </p>
         <ScanFoldersManager />
         <div className="mt-5">
@@ -363,10 +373,9 @@ export default function SettingsPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 font-serif text-lg font-semibold text-ink">Ignored Folders</h2>
+        <h2 className="mb-3 font-serif text-lg font-semibold text-ink">{t("settings.ignoredFolders")}</h2>
         <p className="mb-3 text-sm text-muted">
-          Folders MemoryLane skips during every scan - click "Ignore folder" while browsing a folder to add it here.
-          Removing one from this list doesn't restore anything; it'll be picked up fresh on the next scan.
+          {t("settingsUi.ignoredHelp")}
         </p>
         <ul className="flex flex-col gap-2">
           {ignoredPaths.map((p) => (
@@ -379,20 +388,20 @@ export default function SettingsPage() {
               </span>
               <button
                 onClick={() => removeIgnoredPath(p.id)}
-                aria-label="Remove from ignore list"
-                title="Remove from ignore list"
+                aria-label={t("settings.removeIgnored")}
+                title={t("settings.removeIgnored")}
                 className="grid size-6 shrink-0 place-items-center rounded text-muted hover:bg-hover hover:text-ink"
               >
                 <X size={14} strokeWidth={2} />
               </button>
             </li>
           ))}
-          {ignoredPaths.length === 0 && <li className="text-sm text-muted">No ignored folders.</li>}
+          {ignoredPaths.length === 0 && <li className="text-sm text-muted">{t("settingsUi.noIgnored")}</li>}
         </ul>
       </section>
 
       <section>
-        <h2 className="mb-3 font-serif text-lg font-semibold text-ink">Scanning</h2>
+        <h2 className="mb-3 font-serif text-lg font-semibold text-ink">{t("settings.scanning")}</h2>
         <div className="mb-4 flex items-center gap-2 text-sm text-ink">
           <label className="flex items-center gap-2">
             <input
@@ -401,7 +410,7 @@ export default function SettingsPage() {
               onChange={(e) => updateSchedule({ scanScheduleEnabled: e.target.checked })}
               className="accent-accent"
             />
-            Scan automatically every
+            {t("settingsUi.scanEvery")}
           </label>
           <input
             type="number"
@@ -412,11 +421,11 @@ export default function SettingsPage() {
             disabled={!settings.scanScheduleEnabled}
             className={`w-16 ${inputClass} disabled:opacity-40`}
           />
-          days
+          {t("settingsUi.days")}
         </div>
 
         <button onClick={() => runScanNow()} disabled={status?.running} className={accentButtonClass}>
-          {status?.running ? "Scan running..." : "Run Scan Now (all folders)"}
+          {status?.running ? t("settingsUi.scanRunning") : t("settingsUi.runAll")}
         </button>
         {scheduleError && <p className="mt-2 text-sm text-red-500">{scheduleError}</p>}
 
@@ -426,16 +435,14 @@ export default function SettingsPage() {
                 (see activeScanRootId/ScanProgress) - this only covers the
                 brief window right at the start of a run before the scanner
                 has attributed itself to a specific folder yet. */}
-            {status.running && activeScanRootId === null && <p>Starting scan...</p>}
+            {status.running && activeScanRootId === null && <p>{t("settingsUi.startingScan")}</p>}
             {status.lastRun && !status.running && (
               <p>
-                Last scan: {new Date(status.lastRun.startedAt).toLocaleString()} - {status.lastRun.status} -{" "}
-                {status.lastRun.filesScanned} scanned, {status.lastRun.filesNew} new, {status.lastRun.filesChanged}{" "}
-                changed, {status.lastRun.filesRemoved} removed, {status.lastRun.errorCount} errors.
+                {t("settingsUi.lastScan", { date: new Date(status.lastRun.startedAt).toLocaleString(), status: status.lastRun.status, scanned: status.lastRun.filesScanned, newCount: status.lastRun.filesNew, changed: status.lastRun.filesChanged, removed: status.lastRun.filesRemoved, errors: status.lastRun.errorCount })}
               </p>
             )}
             {status.lastSuccessfulRun && (
-              <p className="text-muted">Last successful scan: {new Date(status.lastSuccessfulRun.startedAt).toLocaleString()}</p>
+              <p className="text-muted">{t("settingsUi.lastSuccessful", { date: new Date(status.lastSuccessfulRun.startedAt).toLocaleString() })}</p>
             )}
           </div>
         )}
@@ -445,10 +452,9 @@ export default function SettingsPage() {
 
       <div role="tabpanel" id="settings-panel-analysis" aria-labelledby="settings-tab-analysis" hidden={activeTab !== "analysis"} tabIndex={0} className="space-y-8 focus-visible:outline-accent">
       <section>
-        <h2 className="mb-1 font-serif text-lg font-semibold text-ink">AI</h2>
+        <h2 className="mb-1 font-serif text-lg font-semibold text-ink">{t("settingsAnalysis.ai")}</h2>
         <p className="mb-3 text-sm text-muted">
-          An optional local sidecar (<code>memorylane-ai</code>) turns photos into vectors for Find similar, describe-it search,
-          smarter stacks, and AI tags. Nothing leaves your machine.
+          {t("settingsAnalysis.aiIntroBefore")} <code>memorylane-ai</code> {t("settingsAnalysis.aiIntroAfter")}
         </p>
         <label className="mb-3 flex items-center gap-2 text-sm text-ink">
           <input
@@ -457,27 +463,26 @@ export default function SettingsPage() {
             onChange={(e) => updateSchedule({ aiEnabled: e.target.checked })}
             className="accent-accent"
           />
-          Analyse photos with the AI sidecar when it's running
+          {t("settingsAnalysis.analyseAi")}
         </label>
         {analysis && (
           <div className="rounded-lg border border-border bg-surface px-4 py-3 text-sm">
-            {analysis.provider === null && <p className="text-muted">No AI provider configured (MEMORYLANE_AI_PROVIDER=none).</p>}
+            {analysis.provider === null && <p className="text-muted">{t("settingsAnalysis.noProvider")}</p>}
             {analysis.provider && analysis.provider.reachable && (
               <p className="text-ink">
                 <span className="mr-2 inline-block size-2 rounded-full bg-green-500 align-middle" aria-hidden />
-                Connected to <code>{analysis.provider.url}</code> · {analysis.provider.model} · {analysis.provider.device}
+                {t("settingsAnalysis.connected")} <code>{analysis.provider.url}</code> · {analysis.provider.model} · {analysis.provider.device}
               </p>
             )}
             {analysis.provider && !analysis.provider.reachable && (
               <div className="text-ink">
                 <p>
                   <span className="mr-2 inline-block size-2 rounded-full bg-amber-500 align-middle" aria-hidden />
-                  Not connected to <code>{analysis.provider.url}</code>
+                  {t("settingsAnalysis.notConnected")} <code>{analysis.provider.url}</code>
                   {analysis.provider.lastError ? ` - ${analysis.provider.lastError}` : ""}
                 </p>
                 <p className="mt-1 text-muted">
-                  Start it with <code>npm run ai</code> in a second terminal (see its README). Photos queue up meanwhile and are
-                  analysed once it's reachable; this card refreshes within a few seconds.
+                  {t("settingsAnalysis.startBefore")} <code>npm run ai</code> {t("settingsAnalysis.startAfter")}
                 </p>
               </div>
             )}
@@ -486,26 +491,24 @@ export default function SettingsPage() {
       </section>
 
       <section id="running-analysis">
-        <h2 className="mb-1 font-serif text-lg font-semibold text-ink">Running Analysis</h2>
+        <h2 className="mb-1 font-serif text-lg font-semibold text-ink">{t("settings.runningAnalysis")}</h2>
         <p className="mb-3 text-sm text-muted">
-          Background processing that runs after scans - EXIF capture, keywords, stacking, and (when the AI sidecar is
-          running) embeddings, photo tags, and faces. Pauses automatically while a scan is running.
+          {t("settingsAnalysis.backgroundHelp")}
         </p>
         {activeTab === "analysis" && <AnalysisProgress key={analysisKey} onStatus={setAnalysis} />}
         {analysis && analysis.analyzers.some((a) => a.counts.failed + a.counts.unsupported > 0) && (
           <div className="mt-3">
             <button onClick={() => void retryAnalysis()} className={buttonClass}>
-              Retry failed
+              {t("settingsAnalysis.retryFailed")}
             </button>
           </div>
         )}
       </section>
 
       <section>
-        <h2 className="mb-1 font-serif text-lg font-semibold text-ink">People</h2>
+        <h2 className="mb-1 font-serif text-lg font-semibold text-ink">{t("settings.people")}</h2>
         <p className="mb-3 text-sm text-muted">
-          Finds faces and groups them into people you can name, then lets you browse "photos of X". Off by default because faces are
-          personal data; everything is computed and stored on this machine only, and can be removed in one click.
+          {t("settingsAnalysis.peopleHelp")}
         </p>
         <label className="mb-3 flex items-center gap-2 text-sm text-ink">
           <input
@@ -514,49 +517,43 @@ export default function SettingsPage() {
             onChange={(e) => updateSchedule({ personsEnabled: e.target.checked })}
             className="accent-accent"
           />
-          Find and group faces (needs the AI sidecar)
+          {t("settingsAnalysis.findFaces")}
         </label>
         <div className="mb-3 flex flex-wrap items-end gap-3 text-sm text-ink">
           <label className="flex flex-col gap-1">
-            <span className="text-muted">Face model</span>
+            <span className="text-muted">{t("settingsAnalysis.faceModel")}</span>
             <select
               value={settings.faceModel}
               onChange={async (e) => {
                 const next = e.target.value as SettingsDto["faceModel"];
                 if (next === settings.faceModel) return;
                 const ok = await confirm({
-                  title: "Switch face model?",
-                  message:
-                    "Every photo is re-analysed with the new model - a few minutes per few thousand photos, and a one-time download the first time. Names and your confirmed/rejected faces are kept. Press Regroup once it finishes.",
-                  confirmLabel: "Switch model",
+                  title: t("settingsAnalysis.switchTitle"), message: t("settingsAnalysis.switchMessage"), confirmLabel: t("settingsAnalysis.switchModel"),
                 });
                 if (ok) void updateSchedule({ faceModel: next });
                 else e.target.value = settings.faceModel;
               }}
               className={inputClass}
             >
-              <option value="yunet-sface">Standard - YuNet + SFace (open license)</option>
-              <option value="buffalo_l">ArcFace - InsightFace buffalo_l (stronger, personal use only)</option>
+              <option value="yunet-sface">{t("settingsAnalysis.standardModel")}</option>
+              <option value="buffalo_l">{t("settingsAnalysis.arcfaceModel")}</option>
             </select>
           </label>
           <p className="max-w-xl text-xs text-muted">
-            ArcFace tells similar faces (siblings, children) apart much better, costs ~60% more time per photo and a one-time ~190 MB
-            download, and its weights are licensed for <em>non-commercial</em> use - fine for your own library, not for redistribution.
+            {t("settingsAnalysis.arcfaceHelp")}
             {analysis?.provider && analysis.provider.reachable && !analysis.provider.faceModels.some((m) => m.name === settings.faceModel) && (
-              <span className="text-amber-600"> The running sidecar doesn't offer this model - update and restart it (npm run ai).</span>
+              <span className="text-amber-600"> {t("settingsAnalysis.modelUnavailable")}</span>
             )}
           </p>
         </div>
         <details className="rounded-lg border border-border p-4">
-          <summary className="mb-3 cursor-pointer text-sm font-medium text-ink">Advanced People settings</summary>
+          <summary className="mb-3 cursor-pointer text-sm font-medium text-ink">{t("settingsAnalysis.advancedPeople")}</summary>
         <p className="mb-2 text-xs text-muted">
-          Siblings and young children look alike to the model - if one person collects several kids, raise both strictness values
-          (0.55-0.6 is a good start) and press Regroup. Stricter means more small "Person N" entries to merge, which is cheaper than
-          un-mixing a wrong one face by face.
+          {t("settingsAnalysis.peopleAdvancedHelp")}
         </p>
         <div className="flex flex-wrap items-end gap-4 text-sm text-ink">
           <label className="flex flex-col gap-1">
-            <span className="text-muted">Match strictness (min similarity, 0.3-0.9)</span>
+            <span className="text-muted">{t("settingsAnalysis.matchStrictness")}</span>
             <input
               type="number"
               min={0.3}
@@ -571,7 +568,7 @@ export default function SettingsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-muted">Faces needed to create a person (2-20)</span>
+            <span className="text-muted">{t("settingsAnalysis.facesNeeded")}</span>
             <input
               type="number"
               min={2}
@@ -586,7 +583,7 @@ export default function SettingsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-muted">Grouping strictness (0.3-0.9)</span>
+            <span className="text-muted">{t("settingsAnalysis.groupStrictness")}</span>
             <input
               type="number"
               min={0.3}
@@ -602,27 +599,23 @@ export default function SettingsPage() {
           </label>
           <button
             className={buttonClass}
-            title="Regroup all automatically grouped faces with the current settings. Names and your ✓/✗ answers are kept."
+            title={t("settingsAnalysis.regroupTitleHelp")}
             onClick={async () => {
               const ok = await confirm({
-                title: "Regroup faces?",
-                message: "Automatic groupings are redone with the current strictness. Names and your confirmed/rejected faces are kept.",
-                confirmLabel: "Regroup",
+                title: t("settingsAnalysis.regroupTitle"), message: t("settingsAnalysis.regroupMessage"), confirmLabel: t("settingsAnalysis.regroup"),
               });
               if (!ok) return;
               const r = await api.persons.regroup();
-              await notice({ title: "Regrouped", message: `${r.persons} new ${r.persons === 1 ? "person" : "people"}, ${r.assigned} faces assigned.` });
+              await notice({ title: t("settingsAnalysis.regrouped"), message: t("settingsAnalysis.regroupedMessage", { count: r.persons, assigned: r.assigned }) });
             }}
           >
-            Regroup with these settings
+            {t("settingsAnalysis.regroupSettings")}
           </button>
           <button
             className={`${buttonClass} text-red-600`}
             onClick={async () => {
               const ok = await confirm({
-                title: "Delete all face data?",
-                message: "People, faces and their vectors are removed. Your photos are untouched. Faces are detected again only while People is on.",
-                confirmLabel: "Delete face data",
+                title: t("settingsAnalysis.deleteTitle"), message: t("settingsAnalysis.deleteMessage"), confirmLabel: t("settingsAnalysis.deleteFaceData"),
                 danger: true,
               });
               if (ok) {
@@ -631,23 +624,22 @@ export default function SettingsPage() {
               }
             }}
           >
-            Delete all face data
+            {t("settingsAnalysis.deleteAll")}
           </button>
         </div>
         </details>
       </section>
 
       <section>
-        <h2 className="mb-1 font-serif text-lg font-semibold text-ink">Stacks</h2>
+        <h2 className="mb-1 font-serif text-lg font-semibold text-ink">{t("settings.stacks")}</h2>
         <p className="mb-3 text-sm text-muted">
-          Bursts (same camera, within the burst gap, visually alike) and tripod series (long exposures minutes apart that look
-          near-identical, within the series gap) are grouped into one grid item. Stacks you edit are never regrouped automatically.
+          {t("settingsAnalysis.stacksHelp")}
         </p>
         <details className="rounded-lg border border-border p-4">
-          <summary className="mb-3 cursor-pointer text-sm font-medium text-ink">Advanced stack settings</summary>
+          <summary className="mb-3 cursor-pointer text-sm font-medium text-ink">{t("settingsAnalysis.advancedStacks")}</summary>
         <div className="flex flex-wrap items-end gap-4 text-sm text-ink">
           <label className="flex flex-col gap-1">
-            <span className="text-muted">Burst gap (seconds)</span>
+            <span className="text-muted">{t("settingsAnalysis.burstGap")}</span>
             <input
               type="number"
               min={0.1}
@@ -662,7 +654,7 @@ export default function SettingsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-muted">Visual similarity (max hash distance, 0-64)</span>
+            <span className="text-muted">{t("settingsAnalysis.visualSimilarity")}</span>
             <input
               type="number"
               min={0}
@@ -677,7 +669,7 @@ export default function SettingsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-muted">AI similarity (min cosine, 0.5-1)</span>
+            <span className="text-muted">{t("settingsAnalysis.aiSimilarity")}</span>
             <input
               type="number"
               min={0.5}
@@ -692,7 +684,7 @@ export default function SettingsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-muted">Tripod series gap (seconds)</span>
+            <span className="text-muted">{t("settingsAnalysis.tripodGap")}</span>
             <input
               type="number"
               min={0}
@@ -707,7 +699,7 @@ export default function SettingsPage() {
             />
           </label>
           <button onClick={() => void recomputeStacks()} className={buttonClass}>
-            Recompute all stacks
+            {t("settingsAnalysis.recompute")}
           </button>
         </div>
         {recomputeMsg && <p className="mt-2 text-sm text-muted">{recomputeMsg}</p>}
@@ -717,95 +709,11 @@ export default function SettingsPage() {
       </div>
 
       <div role="tabpanel" id="settings-panel-plugins" aria-labelledby="settings-tab-plugins" hidden={activeTab !== "plugins"} tabIndex={0} className="space-y-8 focus-visible:outline-accent">
-        {activeTab === "plugins" && <PluginsSettings />}
-      </div>
-
-      <div role="tabpanel" id="settings-panel-storage" aria-labelledby="settings-tab-storage" hidden={activeTab !== "storage"} tabIndex={0} className="space-y-8 focus-visible:outline-accent">
-      <section>
-        <div className="mb-3 flex items-center justify-between gap-4">
-          <h2 className="font-serif text-lg font-semibold text-ink">Storage</h2>
-          <button onClick={loadStorage} disabled={storageLoading} className={buttonClass}>
-            {storageLoading ? "Calculating..." : "Refresh"}
-          </button>
-        </div>
-        <p className="mb-3 text-sm text-muted">
-          MemoryLane's own cache and index - entirely separate from your photo folders, and safe to delete and
-          rebuild via a rescan at any time.
-        </p>
-        {storageError && <p role="alert" className="mb-3 text-sm text-red-500">{storageError}</p>}
-        {storage ? (
-          <>
-            <div className="mb-3 rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm">
-              <div className="text-xs uppercase tracking-wide text-muted">Location</div>
-              <code className="break-all text-ink">{storage.dataDir}</code>
-              <div className="mt-1 text-xs text-muted">
-                {storage.dataDirSource === "env" && "Set by MEMORYLANE_DATA_DIR in the environment."}
-                {storage.dataDirSource === "pointer" && "Chosen under Settings (the default location holds a pointer to it)."}
-                {storage.dataDirSource === "default" && "The OS default location."}
-              </div>
-              {storage.pendingMoveTo && (
-                <p className="mt-2 rounded-md bg-amber-500/15 px-2.5 py-1.5 text-xs text-amber-700">
-                  Data was copied to <code>{storage.pendingMoveTo}</code>. Restart MemoryLane to use it; the copy here can be deleted afterwards.
-                </p>
-              )}
-            </div>
-            <ul className="flex flex-col gap-2">
-              {[
-                ["Previews (RAW fullscreen)", storage.previewsBytes],
-                ["Thumbnail cache", storage.thumbnailCacheBytes],
-                ["Database (index, EXIF, embeddings)", storage.databaseBytes],
-                ["Vector index", storage.vectorsBytes],
-                ["Face crops", storage.facesBytes],
-                ["Logs", storage.logsBytes],
-              ].map(([label, bytes]) => (
-                <li key={label as string} className="flex items-center justify-between rounded-lg border border-border bg-surface px-3.5 py-2.5">
-                  <span className="text-ink">{label}</span>
-                  <span className="text-muted tabular-nums">{formatBytes(bytes as number)}</span>
-                </li>
-              ))}
-              <li className="flex items-center justify-between rounded-lg border border-accent bg-surface px-3.5 py-2.5 font-medium">
-                <span className="text-ink">Total</span>
-                <span className="text-ink tabular-nums">{formatBytes(storage.totalBytes)}</span>
-              </li>
-            </ul>
-            {storage.dataDirSource !== "env" && (
-              <div className="mt-4 flex flex-col gap-2 text-sm">
-                <span className="text-muted">Move to another disk (an empty folder, e.g. <code>/Volumes/External/MemoryLane</code> or <code>D:\\MemoryLane</code>)</span>
-                <div className="flex flex-wrap gap-2">
-                  <input
-                    value={movePath}
-                    onChange={(e) => setMovePath(e.target.value)}
-                    placeholder="/absolute/path/to/empty/folder"
-                    className={`min-w-0 flex-1 ${inputClass}`}
-                  />
-                  <button onClick={() => void moveData()} disabled={moving || !movePath.trim()} className={buttonClass}>
-                    {moving ? "Copying…" : "Move data here"}
-                  </button>
-                </div>
-                {moveError && <p className="text-red-600">{moveError}</p>}
-                {moveDone && (
-                  <p className="text-muted">
-                    Copied {formatBytes(moveDone.bytes)} to <code>{moveDone.to}</code>. <strong className="text-ink">Restart MemoryLane</strong> to switch;
-                    then delete <code>{moveDone.from}</code> to free the space.
-                  </p>
-                )}
-              </div>
-            )}
-          </>
-        ) : (
-          <p className="text-sm text-muted">{storageLoading ? "Calculating..." : "Use Refresh to calculate storage usage."}</p>
-        )}
-      </section>
-
-      </div>
-
-      <div role="tabpanel" id="settings-panel-service" aria-labelledby="settings-tab-service" hidden={activeTab !== "service"} tabIndex={0} className="space-y-8 focus-visible:outline-accent">
-        <section className="max-w-3xl space-y-6">
+        <section className="max-w-3xl space-y-3">
           <div>
-            <h2 className="mb-2 font-serif text-lg font-semibold text-ink">MemoryLane Museum Service</h2>
-            <p className="text-sm text-muted">Control the local service and how it can be reached. Network changes take effect after MemoryLane is restarted.</p>
+            <h2 className="font-serif text-lg font-semibold text-ink">{t("settings.museumTitle")}</h2>
+            <p className="mt-1 text-sm text-muted">{t("settings.museumIntro")}</p>
           </div>
-
           <label className="flex items-start gap-3 rounded-lg border border-border bg-surface p-4">
             <input
               type="checkbox"
@@ -814,23 +722,109 @@ export default function SettingsPage() {
               className="mt-1 size-4 accent-accent"
             />
             <span>
-              <span className="block text-sm font-medium text-ink">Enable MemoryLane Museum Service</span>
-              <span className="mt-1 block text-sm text-muted">Enabled by default. Turn this off when the museum service is not needed.</span>
+              <span className="block text-sm font-medium text-ink">{t("settings.museumEnable")}</span>
+              <span className="mt-1 block text-sm text-muted">{t("settings.museumHelp")}</span>
             </span>
           </label>
+        </section>
+        {activeTab === "plugins" && <PluginsSettings />}
+      </div>
+
+      <div role="tabpanel" id="settings-panel-storage" aria-labelledby="settings-tab-storage" hidden={activeTab !== "storage"} tabIndex={0} className="space-y-8 focus-visible:outline-accent">
+      <section>
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <h2 className="font-serif text-lg font-semibold text-ink">{t("settings.storage")}</h2>
+          <button onClick={loadStorage} disabled={storageLoading} className={buttonClass}>
+            {storageLoading ? t("settingsStorage.calculating") : t("common.refresh")}
+          </button>
+        </div>
+        <p className="mb-3 text-sm text-muted">
+          {t("settingsStorage.intro")}
+        </p>
+        {storageError && <p role="alert" className="mb-3 text-sm text-red-500">{storageError}</p>}
+        {storage ? (
+          <>
+            <div className="mb-3 rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm">
+              <div className="text-xs uppercase tracking-wide text-muted">{t("settingsStorage.location")}</div>
+              <code className="break-all text-ink">{storage.dataDir}</code>
+              <div className="mt-1 text-xs text-muted">
+                {storage.dataDirSource === "env" && t("settingsStorage.sourceEnv")}
+                {storage.dataDirSource === "pointer" && t("settingsStorage.sourcePointer")}
+                {storage.dataDirSource === "default" && t("settingsStorage.sourceDefault")}
+              </div>
+              {storage.pendingMoveTo && (
+                <p className="mt-2 rounded-md bg-amber-500/15 px-2.5 py-1.5 text-xs text-amber-700">
+                  {t("settingsStorage.pendingBefore")} <code>{storage.pendingMoveTo}</code>. {t("settingsStorage.pendingAfter")}
+                </p>
+              )}
+            </div>
+            <ul className="flex flex-col gap-2">
+              {[
+                [t("settingsStorage.previews"), storage.previewsBytes],
+                [t("settingsStorage.thumbnails"), storage.thumbnailCacheBytes],
+                [t("settingsStorage.database"), storage.databaseBytes],
+                [t("settingsStorage.vectors"), storage.vectorsBytes],
+                [t("settingsStorage.faces"), storage.facesBytes],
+                [t("settingsStorage.logs"), storage.logsBytes],
+              ].map(([label, bytes]) => (
+                <li key={label as string} className="flex items-center justify-between rounded-lg border border-border bg-surface px-3.5 py-2.5">
+                  <span className="text-ink">{label}</span>
+                  <span className="text-muted tabular-nums">{formatBytes(bytes as number)}</span>
+                </li>
+              ))}
+              <li className="flex items-center justify-between rounded-lg border border-accent bg-surface px-3.5 py-2.5 font-medium">
+                <span className="text-ink">{t("settingsStorage.total")}</span>
+                <span className="text-ink tabular-nums">{formatBytes(storage.totalBytes)}</span>
+              </li>
+            </ul>
+            {storage.dataDirSource !== "env" && (
+              <div className="mt-4 flex flex-col gap-2 text-sm">
+                <span className="text-muted">{t("settingsStorage.moveHelp")} <code>/Volumes/External/MemoryLane</code> {t("settingsStorage.or")} <code>D:\\MemoryLane</code>)</span>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    value={movePath}
+                    onChange={(e) => setMovePath(e.target.value)}
+                    placeholder={t("settingsStorage.pathPlaceholder")}
+                    className={`min-w-0 flex-1 ${inputClass}`}
+                  />
+                  <button onClick={() => void moveData()} disabled={moving || !movePath.trim()} className={buttonClass}>
+                    {moving ? t("settingsStorage.copying") : t("settingsStorage.moveHere")}
+                  </button>
+                </div>
+                {moveError && <p className="text-red-600">{moveError}</p>}
+                {moveDone && (
+                  <p className="text-muted">
+                    {t("settingsStorage.copied", { bytes: formatBytes(moveDone.bytes) })} <code>{moveDone.to}</code>. <strong className="text-ink">{t("settingsStorage.restart")}</strong> {t("settingsStorage.switchThenDelete")} <code>{moveDone.from}</code> {t("settingsStorage.freeSpace")}
+                  </p>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-muted">{storageLoading ? t("settingsStorage.calculating") : t("settingsStorage.useRefresh")}</p>
+        )}
+      </section>
+
+      </div>
+
+      <div role="tabpanel" id="settings-panel-network" aria-labelledby="settings-tab-network" hidden={activeTab !== "network"} tabIndex={0} className="space-y-8 focus-visible:outline-accent">
+        <section className="max-w-3xl space-y-6">
+          <div>
+            <h2 className="mb-2 font-serif text-lg font-semibold text-ink">{t("settings.network")}</h2>
+            <p className="text-sm text-muted">{t("settings.networkIntro")}</p>
+          </div>
 
           <label className="flex items-start gap-3 rounded-lg border border-border bg-surface p-4">
             <input
               type="checkbox"
               checked={settings.bindAddress === "0.0.0.0"}
-              disabled={!settings.museumServiceEnabled}
               onChange={(event) => void updateSchedule({ bindAddress: event.target.checked ? "0.0.0.0" : "127.0.0.1" })}
-              className="mt-1 size-4 accent-accent disabled:opacity-50"
+              className="mt-1 size-4 accent-accent"
             />
             <span>
-              <span className="block text-sm font-medium text-ink">Bind to all network interfaces</span>
+              <span className="block text-sm font-medium text-ink">{t("settings.allowRemote")}</span>
               <span className="mt-1 block text-sm text-muted">
-                Off by default, so MemoryLane is available only on this computer. Enable the Museum Service first, then restart MemoryLane to apply this change.
+                {t("settings.allowRemoteHelp")}
               </span>
             </span>
           </label>
@@ -839,8 +833,8 @@ export default function SettingsPage() {
 
       <div role="tabpanel" id="settings-panel-account" aria-labelledby="settings-tab-account" hidden={activeTab !== "account"} tabIndex={0} className="space-y-8 focus-visible:outline-accent">
       <section>
-        <h2 className="mb-3 font-serif text-lg font-semibold text-ink">Account</h2>
-        {user && <p className="mb-3 text-sm text-muted">Signed in as <span className="font-medium text-ink">{user.username}</span></p>}
+        <h2 className="mb-3 font-serif text-lg font-semibold text-ink">{t("settings.accountHeading")}</h2>
+        {user && <p className="mb-3 text-sm text-muted">{t("settings.signedInAs", { username: user.username })}</p>}
         <ChangePasswordForm />
       </section>
       </div>
@@ -852,31 +846,31 @@ export default function SettingsPage() {
               <img src="/icon-32.png" alt="" className="size-8 shrink-0" />
               <span>MemoryLane{version ? ` v${version}` : ""}</span>
             </h2>
-            <p className="mt-1 text-sm text-muted">A love letter to the art of photography.</p>
+            <p className="mt-1 text-sm text-muted">{t("settingsAbout.tagline")}</p>
           </div>
 
           <div className="space-y-1 text-sm">
-            <p className="font-medium text-ink">Free, MIT Licensed</p>
+            <p className="font-medium text-ink">{t("settingsAbout.free")}</p>
             <p className="text-muted">
-              Original Authors: <span className="text-ink">Madhan Kanagavel, Anis Abdul</span>
+              {t("settingsAbout.authors")} <span className="text-ink">Madhan Kanagavel, Anis Abdul</span>
             </p>
           </div>
 
           <div>
-            <h3 className="mb-2 font-serif text-lg font-semibold text-ink">Other Licenses and Attributions</h3>
+            <h3 className="mb-2 font-serif text-lg font-semibold text-ink">{t("settingsAbout.licenses")}</h3>
             <div className="max-h-72 overflow-y-auto rounded-lg border border-border bg-surface p-4 text-sm leading-6 text-muted" tabIndex={0}>
-              <p>MemoryLane is built with open-source software. Key components include:</p>
+              <p>{t("settingsAbout.openSource")}</p>
               <ul className="mt-3 list-disc space-y-2 pl-5">
-                <li><strong className="text-ink">React, React DOM, React Router, Fastify, better-sqlite3, Argon2, Zod, Nano ID, bmp-js, open, and p-limit</strong> — MIT License.</li>
-                <li><strong className="text-ink">Lucide</strong> — ISC License.</li>
-                <li><strong className="text-ink">dotenv</strong> — BSD 2-Clause License.</li>
-                <li><strong className="text-ink">Sharp and its bundled libvips distribution</strong> — Apache License 2.0 and LGPL v3 or later, respectively.</li>
-                <li><strong className="text-ink">ExifTool and exiftool-vendored</strong> — ExifTool is available under the Perl Artistic License or GNU GPL; its Node wrapper is MIT licensed.</li>
-                <li><strong className="text-ink">FFmpeg</strong> — bundled through ffmpeg-static under the GNU GPL v3 or later. FFprobe is distributed with its applicable FFmpeg license; the ffprobe-static wrapper is MIT licensed.</li>
-                <li><strong className="text-ink">Go systray</strong> and its supporting Go libraries power the desktop tray application under their respective open-source licenses.</li>
+                <li>{t("settingsAbout.licenseMit")}</li>
+                <li>{t("settingsAbout.licenseLucide")}</li>
+                <li>{t("settingsAbout.licenseDotenv")}</li>
+                <li>{t("settingsAbout.licenseSharp")}</li>
+                <li>{t("settingsAbout.licenseExif")}</li>
+                <li>{t("settingsAbout.licenseFfmpeg")}</li>
+                <li>{t("settingsAbout.licenseTray")}</li>
               </ul>
-              <p className="mt-4">Optional plugins may include additional libraries, models, and license terms. Their license notices are distributed with each plugin package.</p>
-              <p className="mt-4">Copyright and license notices for bundled dependencies remain the property of their respective authors and contributors. Full license texts are included with the distributed software where required.</p>
+              <p className="mt-4">{t("settingsAbout.plugins")}</p>
+              <p className="mt-4">{t("settingsAbout.copyright")}</p>
             </div>
           </div>
         </section>

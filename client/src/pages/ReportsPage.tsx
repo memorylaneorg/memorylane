@@ -14,17 +14,12 @@ import MediaGrid from "../components/MediaGrid";
 import MediaTypeFilter from "../components/MediaTypeFilter";
 import Viewer from "../components/Viewer";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
+import { useTranslation } from "react-i18next";
 
 const PAGE_SIZE = 200;
 
-const FACET_TITLES: Record<ReportFacetField, string> = {
-  lens: "Lens",
-  camera: "Camera",
-  make: "Make",
-  aperture: "Aperture",
-  iso: "ISO",
-  focal: "Focal length",
-  year: "Year",
+const FACET_TITLE_KEYS: Record<ReportFacetField, string> = {
+  lens: "reportsUi.lens", camera: "reportsUi.camera", make: "reportsUi.make", aperture: "reportsUi.aperture", iso: "reportsUi.iso", focal: "reportsUi.focal", year: "reportsUi.year",
 };
 const FACET_ORDER: ReportFacetField[] = ["lens", "camera", "aperture", "focal", "iso", "year", "make"];
 const PRIMARY_FACETS: ReportFacetField[] = ["camera", "lens", "focal"];
@@ -106,13 +101,13 @@ function applyFacet(field: ReportFacetField, value: string | undefined, f: Repor
 
 type Chip = { field: ReportFacetField | "dates"; label: string };
 
-function activeChips(f: ReportFilters, facets: ReportFacetsDto | null): Chip[] {
+function activeChips(f: ReportFilters, facets: ReportFacetsDto | null, title: (field: ReportFacetField) => string): Chip[] {
   const chips: Chip[] = [];
   for (const field of FACET_ORDER) {
     const v = selectedFor(field, f);
     if (v === undefined) continue;
     const label = facets?.facets[field].find((b) => b.value === v)?.label ?? v;
-    chips.push({ field, label: `${FACET_TITLES[field]}: ${label}` });
+    chips.push({ field, label: `${title(field)}: ${label}` });
   }
   if (f.from || f.to) chips.push({ field: "dates", label: `${f.from ?? "…"} → ${f.to ?? "…"}` });
   return chips;
@@ -121,6 +116,7 @@ function activeChips(f: ReportFilters, facets: ReportFacetsDto | null): Chip[] {
 const dateInputClass = "rounded-md border border-border bg-page px-2 py-1 text-ink";
 
 export default function ReportsPage() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => filtersFromParams(searchParams), [searchParams]);
   const [facets, setFacets] = useState<ReportFacetsDto | null>(null);
@@ -168,7 +164,8 @@ export default function ReportsPage() {
 
   const hasMore = media !== null && media.length < mediaTotal;
   const sentinelRef = useInfiniteScroll(loadMore, hasMore, loadingMore);
-  const chips = activeChips(filters, facets);
+  const facetTitle = (field: ReportFacetField) => t(FACET_TITLE_KEYS[field]);
+  const chips = activeChips(filters, facets, facetTitle);
   const secondaryFilterActive = MORE_FACETS.some((field) => selectedFor(field, filters) !== undefined);
   const showMoreFilters = moreFiltersOpen || secondaryFilterActive;
 
@@ -176,14 +173,14 @@ export default function ReportsPage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl font-semibold text-ink">Reports</h1>
+          <h1 className="font-serif text-2xl font-semibold text-ink">{t("pages.reports")}</h1>
           <p className="text-xs text-muted">
-            {facets ? `${facets.total.toLocaleString()} photos with EXIF data match` : "Loading…"}
-            {facets && <> · <Link to="/settings?tab=analysis#running-analysis" className="text-accent hover:underline">View analysis progress</Link></>}
+            {facets ? t("reportsUi.exifMatch", { count: facets.total }) : t("common.loading")}
+            {facets && <> · <Link to="/settings?tab=analysis#running-analysis" className="text-accent hover:underline">{t("reportsUi.analysisProgress")}</Link></>}
             {" · "}
-            <Link to="/gear-museum" className="text-accent hover:underline">Explore Gear Museum</Link>
+            <Link to="/gear-museum" className="text-accent hover:underline">{t("reportsUi.exploreMuseum")}</Link>
             {" · "}
-            <Link to="/gear-timeline" className="text-accent hover:underline">Explore Gear Timeline</Link>
+            <Link to="/gear-timeline" className="text-accent hover:underline">{t("reportsUi.exploreTimeline")}</Link>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -193,14 +190,14 @@ export default function ReportsPage() {
             download
             className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-ink hover:bg-hover"
           >
-            <Download size={14} strokeWidth={1.8} /> Export CSV
+            <Download size={14} strokeWidth={1.8} /> {t("reportsUi.export")}
           </a>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <label className="flex items-center gap-1.5 text-muted">
-          From
+          {t("reportsUi.from")}
           <input
             type="date"
             value={filters.from ?? ""}
@@ -209,7 +206,7 @@ export default function ReportsPage() {
           />
         </label>
         <label className="flex items-center gap-1.5 text-muted">
-          To
+          {t("reportsUi.to")}
           <input
             type="date"
             value={filters.to ?? ""}
@@ -237,7 +234,7 @@ export default function ReportsPage() {
             onClick={() => setFilters({ type: filters.type })}
             className="text-xs text-muted underline hover:text-ink"
           >
-            Clear all
+            {t("reportsUi.clearAll")}
           </button>
         )}
       </div>
@@ -246,7 +243,7 @@ export default function ReportsPage() {
         {PRIMARY_FACETS.map((field) => (
           <FacetPanel
             key={field}
-            title={FACET_TITLES[field]}
+            title={facetTitle(field)}
             buckets={facets?.facets[field] ?? []}
             selected={selectedFor(field, filters)}
             onSelect={(v) => setFilters(applyFacet(field, v, filters))}
@@ -257,21 +254,20 @@ export default function ReportsPage() {
       <div>
         <button type="button" aria-expanded={showMoreFilters} onClick={() => setMoreFiltersOpen((open) => !open)}
           className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted hover:bg-hover hover:text-ink">
-          More filters
+          {t("reportsUi.moreFilters")}
           <ChevronDown size={14} aria-hidden className={`transition-transform ${showMoreFilters ? "rotate-180" : ""}`} />
         </button>
         {showMoreFilters && <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {MORE_FACETS.map((field) => <FacetPanel key={field} title={FACET_TITLES[field]}
+          {MORE_FACETS.map((field) => <FacetPanel key={field} title={facetTitle(field)}
             buckets={facets?.facets[field] ?? []} selected={selectedFor(field, filters)}
             onSelect={(v) => setFilters(applyFacet(field, v, filters))} />)}
         </div>}
       </div>
 
-      {media === null && <p className="text-sm text-muted">Loading photos…</p>}
+      {media === null && <p className="text-sm text-muted">{t("reportsUi.loadingPhotos")}</p>}
       {media && media.length === 0 && (
         <p className="text-sm text-muted">
-          No photos match. EXIF data is captured during scans - if the library was indexed before this feature, the
-          backfill under Settings → Analysis fills it in.
+          {t("reportsUi.noMatch")}
         </p>
       )}
       {media && media.length > 0 && <MediaGrid items={media} onOpen={setViewerIndex} />}
@@ -280,7 +276,7 @@ export default function ReportsPage() {
         <div ref={sentinelRef} className="flex min-h-[60px] items-center justify-center text-sm">
           {loadingMore && (
             <span className="text-muted">
-              Loading more ({media?.length ?? 0} / {mediaTotal})…
+              {t("reportsUi.loadingMore", { current: media?.length ?? 0, total: mediaTotal })}
             </span>
           )}
         </div>

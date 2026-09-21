@@ -4,10 +4,12 @@ import type { SimilarResultDto } from "@memorylane/shared";
 import { api, ApiError } from "../api/client";
 import MediaGrid from "../components/MediaGrid";
 import Viewer from "../components/Viewer";
+import { useTranslation } from "react-i18next";
 
 // "Find similar": nearest neighbours of one photo in CLIP space. Needs the
 // AI sidecar; the two failure modes get plain explanations, not a spinner.
 export default function SimilarPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const mediaId = Number(id);
   const [result, setResult] = useState<SimilarResultDto | null>(null);
@@ -46,7 +48,7 @@ export default function SimilarPage() {
           />
         )}
         <div className="min-w-0">
-          <h1 className="font-serif text-2xl font-semibold text-ink">Similar photos</h1>
+          <h1 className="font-serif text-2xl font-semibold text-ink">{t("pages.similar")}</h1>
           <p className="truncate text-sm text-muted">
             {result ? `Photos that look like ${result.source.filename}` : problem ? "" : "Looking…"}
           </p>

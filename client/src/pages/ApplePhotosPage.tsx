@@ -7,11 +7,11 @@ import { ApplePhotoTile } from "../components/ApplePhotoTile";
 import Viewer from "../components/Viewer";
 import { invertVisibleSelection } from "../utils/selection";
 import { useConfirm } from "../components/ConfirmDialog";
+import { useTranslation } from "react-i18next";
 
 const PAGE_SIZE = 100;
-const monthName = (month: string) => new Date(2000, Number(month) - 1, 1).toLocaleString(undefined, { month: "long" });
-
 export default function ApplePhotosPage() {
+  const { t, i18n } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const rootId = Number(id);
   const [params] = useSearchParams();
@@ -37,17 +37,17 @@ export default function ApplePhotosPage() {
     setSelectMode(false);
     void api.plugins.browseApplePhotos(rootId, year, month, 0, PAGE_SIZE)
       .then((value) => { if (current) { setResult(value); setItems(value.items); } })
-      .catch((cause: unknown) => { if (current) setError(cause instanceof Error ? cause.message : "Could not load Apple Photos"); })
+      .catch((cause: unknown) => { if (current) setError(cause instanceof Error ? cause.message : t("appleBrowse.loadFailed")); })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
-  }, [rootId, year, month]);
+  }, [rootId, year, month, t]);
 
   const media = useMemo(() => items.flatMap((item) => item.media ? [item.media] : []), [items]);
   const rootUrl = `/apple-photos/${rootId}`;
   const openCatalogItem = async (item: AppleBrowseItemDto) => {
     setBusy(item.uuid); setError(null);
     try { await api.plugins.openCatalogItemInPhotos(rootId, item.uuid); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not open Photos"); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : t("appleBrowse.openFailed")); }
     finally { setBusy(null); }
   };
   const checkLocal = async (item: AppleBrowseItemDto) => {
@@ -57,8 +57,8 @@ export default function ApplePhotosPage() {
       if (status.available) {
         const updated = await api.plugins.browseApplePhotos(rootId, year, month, 0, Math.max(items.length, PAGE_SIZE));
         setResult(updated); setItems(updated.items);
-      } else setError("No usable local image yet. View the photo in Photos, then try again.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not check local copy"); }
+      } else setError(t("appleBrowse.noLocal"));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : t("appleBrowse.checkFailed")); }
     finally { setBusy(null); }
   };
   const loadMore = async () => {
@@ -67,16 +67,15 @@ export default function ApplePhotosPage() {
     try {
       const next = await api.plugins.browseApplePhotos(rootId, year, month, items.length, PAGE_SIZE);
       setItems((prior) => [...prior, ...next.items]);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load more photos"); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : t("appleBrowse.moreFailed")); }
     finally { setLoading(false); }
   };
 
   const markSelected = async () => {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
-    const ok = await confirm({ title: `Mark ${ids.length} Apple Photos item(s)?`,
-      message: "They will disappear from MemoryLane browsing and remain in Cleanup. No Photos library files will be changed.",
-      confirmLabel: "Mark for deletion", danger: true });
+    const ok = await confirm({ title: t("appleBrowse.markTitle", { count: ids.length }),
+      message: t("appleBrowse.markMessage"), confirmLabel: t("appleBrowse.mark"), danger: true });
     if (!ok) return;
     setError(null);
     try {
@@ -86,36 +85,36 @@ export default function ApplePhotosPage() {
       setResult((previous) => previous ? { ...previous, total: previous.total - ids.length } : previous);
       setSelectedIds(new Set());
       setSelectMode(false);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not mark Apple Photos items"); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : t("appleBrowse.markFailed")); }
   };
 
   return <div className="flex flex-col gap-6">
-    <nav className="flex flex-wrap gap-2 text-sm text-muted" aria-label="Apple Photos breadcrumbs">
-      <Link to="/" className="hover:text-ink">Library</Link><span>›</span>
-      <Link to={rootUrl} className="hover:text-ink">Apple Device Photos</Link>
-      {year && <><span>›</span><Link to={`${rootUrl}?year=${year}`} className="hover:text-ink">{year === "all" ? "All Photos" : year === "unknown" ? "Unknown Date" : year}</Link></>}
-      {month && <><span>›</span><span>{monthName(month)}</span></>}
+    <nav className="flex flex-wrap gap-2 text-sm text-muted" aria-label={t("appleBrowse.breadcrumbs")}>
+      <Link to="/" className="hover:text-ink">{t("navigation.library")}</Link><span>›</span>
+      <Link to={rootUrl} className="hover:text-ink">{t("applePhotos.devicePhotos")}</Link>
+      {year && <><span>›</span><Link to={`${rootUrl}?year=${year}`} className="hover:text-ink">{year === "all" ? t("appleBrowse.allPhotos") : year === "unknown" ? t("appleBrowse.unknownDate") : year}</Link></>}
+      {month && <><span>›</span><span>{new Date(2000, Number(month) - 1, 1).toLocaleString(i18n.resolvedLanguage, { month: "long" })}</span></>}
     </nav>
     <div>
-      <h1 className="font-serif text-3xl font-semibold text-ink">{month ? `${monthName(month)} ${year}` : year === "all" ? "All Photos" : year === "unknown" ? "Unknown Date" : year ?? "Apple Device Photos"}</h1>
-      {result && result.total > 0 && <p className="mt-1 text-sm text-muted">{result.total.toLocaleString()} items</p>}
+      <h1 className="font-serif text-3xl font-semibold text-ink">{month ? `${new Date(2000, Number(month) - 1, 1).toLocaleString(i18n.resolvedLanguage, { month: "long" })} ${year}` : year === "all" ? t("appleBrowse.allPhotos") : year === "unknown" ? t("appleBrowse.unknownDate") : year ?? t("applePhotos.devicePhotos")}</h1>
+      {result && result.total > 0 && <p className="mt-1 text-sm text-muted">{t("appleBrowse.items", { count: result.total })}</p>}
     </div>
     {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
     {items.some((item) => item.mediaId !== null) && <div className="flex flex-wrap items-center gap-2 text-sm">
-      {!selectMode ? <button onClick={() => setSelectMode(true)} className="rounded-md border border-border px-3 py-1.5">Select</button> : <>
-        <span>{selectedIds.size} selected</span>
-        <button onClick={() => setSelectedIds(new Set(items.flatMap((item) => item.mediaId === null ? [] : [item.mediaId])))} className="rounded-md border border-border px-3 py-1.5">Select all {items.filter((item) => item.mediaId !== null).length} shown</button>
-        <button onClick={() => setSelectedIds(new Set())} className="rounded-md border border-border px-3 py-1.5">None</button>
-        <button onClick={() => setSelectedIds(invertVisibleSelection(items.flatMap((item) => item.mediaId === null ? [] : [item.mediaId]), selectedIds))} className="rounded-md border border-border px-3 py-1.5">Invert shown</button>
-        <button disabled={selectedIds.size === 0} onClick={() => void markSelected()} className="rounded-md border border-border px-3 py-1.5 disabled:opacity-40">Mark for deletion</button>
-        <button onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }} className="rounded-md border border-border px-3 py-1.5">Cancel</button>
+      {!selectMode ? <button onClick={() => setSelectMode(true)} className="rounded-md border border-border px-3 py-1.5">{t("appleBrowse.select")}</button> : <>
+        <span>{t("appleBrowse.selected", { count: selectedIds.size })}</span>
+        <button onClick={() => setSelectedIds(new Set(items.flatMap((item) => item.mediaId === null ? [] : [item.mediaId])))} className="rounded-md border border-border px-3 py-1.5">{t("appleBrowse.selectShown", { count: items.filter((item) => item.mediaId !== null).length })}</button>
+        <button onClick={() => setSelectedIds(new Set())} className="rounded-md border border-border px-3 py-1.5">{t("appleBrowse.none")}</button>
+        <button onClick={() => setSelectedIds(invertVisibleSelection(items.flatMap((item) => item.mediaId === null ? [] : [item.mediaId]), selectedIds))} className="rounded-md border border-border px-3 py-1.5">{t("appleBrowse.invert")}</button>
+        <button disabled={selectedIds.size === 0} onClick={() => void markSelected()} className="rounded-md border border-border px-3 py-1.5 disabled:opacity-40">{t("appleBrowse.mark")}</button>
+        <button onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }} className="rounded-md border border-border px-3 py-1.5">{t("common.cancel")}</button>
       </>}
     </div>}
-    {!year && <Link to={`${rootUrl}?year=all`} className="w-fit rounded-md border border-border px-4 py-2 text-sm text-ink hover:bg-hover">All Photos</Link>}
+    {!year && <Link to={`${rootUrl}?year=all`} className="w-fit rounded-md border border-border px-4 py-2 text-sm text-ink hover:bg-hover">{t("appleBrowse.allPhotos")}</Link>}
     {result && result.groups.length > 0 && <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
       {result.groups.map((group) => <AppleBrowseCard key={group.key}
         to={year ? `${rootUrl}?year=${year}&month=${group.key}` : `${rootUrl}?year=${group.key}`}
-        title={group.key === "unknown" ? "Unknown Date" : year ? monthName(group.key) : group.key}
+        title={group.key === "unknown" ? t("appleBrowse.unknownDate") : year ? new Date(2000, Number(group.key) - 1, 1).toLocaleString(i18n.resolvedLanguage, { month: "long" }) : group.key}
         previewRootId={rootId} previewYear={year ?? group.key} previewMonth={year ? group.key : undefined}
         count={group.count} coverMediaId={group.coverMediaId} thumbnailVersion={group.thumbnailVersion} />)}
     </div>}
@@ -126,8 +125,8 @@ export default function ApplePhotosPage() {
         onOpen={() => setViewerItem(item.media ?? null)} onOpenInPhotos={() => void openCatalogItem(item)}
         onCheckLocal={() => void checkLocal(item)} />)}
     </div>}
-    {result && items.length < result.total && <button type="button" disabled={loading} onClick={() => void loadMore()} className="self-center rounded-md border border-border px-4 py-2 text-sm text-ink">{loading ? "Loading…" : "Load more"}</button>}
-    {loading && !result && <p className="text-sm text-muted">Loading Apple Photos…</p>}
+    {result && items.length < result.total && <button type="button" disabled={loading} onClick={() => void loadMore()} className="self-center rounded-md border border-border px-4 py-2 text-sm text-ink">{loading ? t("common.loading") : t("appleBrowse.loadMore")}</button>}
+    {loading && !result && <p className="text-sm text-muted">{t("appleBrowse.loading")}</p>}
     {viewerItem && <Viewer items={media} startIndex={Math.max(0, media.findIndex((candidate) => candidate.id === viewerItem.id))} onClose={() => setViewerItem(null)} total={media.length} />}
   </div>;
 }

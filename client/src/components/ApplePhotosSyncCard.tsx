@@ -3,17 +3,19 @@ import type { ApplePhotosSyncStatusDto, PluginDto, ScanRootDto } from "@memoryla
 import { api, ApiError } from "../api/client";
 import { isPluginActive } from "../utils/plugins";
 import { useConfirm } from "./ConfirmDialog";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 const buttonClass = "rounded-md border border-border px-3 py-1.5 text-sm text-ink hover:bg-hover disabled:opacity-40";
 
-function syncSummary(status: ApplePhotosSyncStatusDto | undefined): string {
-  if (!status) return "Not synced";
+function syncSummary(status: ApplePhotosSyncStatusDto | undefined, t: TFunction): string {
+  if (!status) return t("applePhotos.notSynced");
   if (status.status === "running" && status.total === 0) {
     const started = status.startedAt ? Date.parse(status.startedAt) : NaN;
-    const elapsed = Number.isFinite(started) ? ` · ${Math.max(0, Math.floor((Date.now() - started) / 1000))}s elapsed` : "";
-    return `Preparing Photos catalog${elapsed}`;
+    const elapsed = Number.isFinite(started) ? t("applePhotos.elapsed", { seconds: Math.max(0, Math.floor((Date.now() - started) / 1000)) }) : "";
+    return t("applePhotos.preparing", { elapsed });
   }
-  return `${status.processed.toLocaleString()} / ${status.total.toLocaleString()} · ${status.status}${status.failed ? ` · ${status.failed.toLocaleString()} skipped` : ""}`;
+  return t("applePhotos.syncSummary", { processed: status.processed.toLocaleString(), total: status.total.toLocaleString(), status: status.status }) + (status.failed ? t("applePhotos.skipped", { count: status.failed.toLocaleString() }) : "");
 }
 
 interface PanelProps {
@@ -32,53 +34,53 @@ interface PanelProps {
 }
 
 export function ApplePhotosPluginPanel(props: PanelProps) {
+  const { t } = useTranslation();
   const { plugin, roots, statuses, helperStatus, libraryPath, busy, onPathChange, onAdd, onSync } = props;
   return (
     <section className="space-y-5 rounded-xl border border-border bg-surface p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-ink">Apple Photos</h2>
-          <p className="text-sm text-muted">Read-only import from a local macOS Photos library.</p>
+          <h2 className="text-xl font-semibold text-ink">{t("applePhotos.title")}</h2>
+          <p className="text-sm text-muted">{t("applePhotos.readOnly")}</p>
         </div>
-        {!plugin.available && <span className="text-sm text-muted">Unavailable on this platform</span>}
+        {!plugin.available && <span className="text-sm text-muted">{t("applePhotos.unavailablePlatform")}</span>}
       </div>
       {plugin.enabled && (
         <div className="space-y-5 border-t border-border pt-5">
           <div className="space-y-1 text-sm text-muted">
-            <p>Plugin service: {helperStatus ?? "Checking…"}. MemoryLane starts and monitors it automatically.</p>
-            <p>If the library cannot be read, grant Full Disk Access to MemoryLane in System Settings, then retry.</p>
+            <p>{t("applePhotos.service", { status: helperStatus ?? t("applePhotos.checking") })}</p>
+            <p>{t("applePhotos.permissionHint")}</p>
           </div>
           <form onSubmit={onAdd} className="flex flex-wrap gap-2">
-            <label className="sr-only" htmlFor="apple-photos-library-path">Photos library path</label>
+            <label className="sr-only" htmlFor="apple-photos-library-path">{t("applePhotos.path")}</label>
             <input id="apple-photos-library-path" value={libraryPath} onChange={(event) => onPathChange(event.target.value)}
               placeholder="/Users/you/Pictures/Photos Library.photoslibrary" className="min-w-64 flex-1 rounded-md border border-border bg-page px-3 py-2 text-sm text-ink" />
-            <button type="submit" className={buttonClass} disabled={busy || !libraryPath.trim()}>Add library</button>
+            <button type="submit" className={buttonClass} disabled={busy || !libraryPath.trim()}>{t("applePhotos.addLibrary")}</button>
           </form>
           {(props.detected ?? []).filter((item) => !roots.some((root) => root.path === item.path)).map((item) => (
             <div key={item.path} className="flex flex-wrap items-start gap-2 text-sm text-muted">
-              <span className="break-all">Detected: {item.path}</span>
-              {item.readable ? <button type="button" className={buttonClass} onClick={() => props.onChooseDetected?.(item.path)}>Use this path</button>
+              <span className="break-all">{t("applePhotos.detected", { path: item.path })}</span>
+              {item.readable ? <button type="button" className={buttonClass} onClick={() => props.onChooseDetected?.(item.path)}>{t("applePhotos.usePath")}</button>
                 : <div className="space-y-1 text-red-500">
                   <p>{item.reason}</p>
                   {/operation not permitted|permission/i.test(item.reason ?? "") && <p>
-                    MemoryLane needs Full Disk Access to read this Photos library. Open System Settings → Privacy &amp; Security → Full Disk Access,
-                    enable MemoryLane, then fully quit and reopen MemoryLane.
+                    {t("applePhotos.fullDiskAccess")}
                   </p>}
                 </div>}
             </div>
           ))}
           <div className="space-y-3">
-            {roots.length === 0 && <p className="text-sm text-muted">No Photos libraries added yet.</p>}
+            {roots.length === 0 && <p className="text-sm text-muted">{t("applePhotos.noLibraries")}</p>}
             {roots.map((root) => {
               const status = statuses[root.id];
               return <div key={root.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
                 <div className="min-w-0">
                   <p className="break-all text-sm text-ink">{root.path}</p>
-                  <p className="text-xs text-muted">{root.stats.mediaCount.toLocaleString()} indexed · {syncSummary(status)}</p>
-                  {status && <p className="text-xs text-muted">{status.previewOnly.toLocaleString()} preview-only · {status.unavailable.toLocaleString()} unavailable</p>}
-                  {status?.error && <p className="text-xs text-red-500">Previous sync error: {status.error}</p>}
+                  <p className="text-xs text-muted">{t("applePhotos.indexed", { count: root.stats.mediaCount.toLocaleString(), summary: syncSummary(status, t) })}</p>
+                  {status && <p className="text-xs text-muted">{t("applePhotos.availability", { previewOnly: status.previewOnly.toLocaleString(), unavailable: status.unavailable.toLocaleString() })}</p>}
+                  {status?.error && <p className="text-xs text-red-500">{t("applePhotos.previousError", { error: status.error })}</p>}
                 </div>
-                <button type="button" className={buttonClass} disabled={busy || !root.enabled || status?.status === "running"} onClick={() => onSync(root.id)}>Sync now</button>
+                <button type="button" className={buttonClass} disabled={busy || !root.enabled || status?.status === "running"} onClick={() => onSync(root.id)}>{t("applePhotos.syncNow")}</button>
               </div>;
             })}
           </div>
@@ -89,6 +91,7 @@ export function ApplePhotosPluginPanel(props: PanelProps) {
 }
 
 export default function ApplePhotosSyncCard() {
+  const { t } = useTranslation();
   const { notice } = useConfirm();
   const [visible, setVisible] = useState(false);
   const [roots, setRoots] = useState<ScanRootDto[]>([]);
@@ -124,15 +127,15 @@ export default function ApplePhotosSyncCard() {
       await api.plugins.applePhotosHealth();
       setHelperStatus("ready");
     } catch (cause) {
-      setHelperStatus(cause instanceof Error ? cause.message : "not running");
+      setHelperStatus(cause instanceof Error ? cause.message : t("appleErrors.notRunning"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
-    void refresh().catch((cause) => void notice({ title: "Could not load Apple Photos", message: cause instanceof Error ? cause.message : "Something went wrong." }));
+    void refresh().catch((cause) => void notice({ title: t("appleBrowse.loadFailed"), message: cause instanceof Error ? cause.message : t("pluginUi.genericError") }));
     const timer = window.setInterval(() => void refresh().catch(() => {}), 3000);
     return () => window.clearInterval(timer);
-  }, [notice, refresh]);
+  }, [notice, refresh, t]);
 
   const add = async (event: FormEvent) => {
     event.preventDefault();
@@ -142,7 +145,7 @@ export default function ApplePhotosSyncCard() {
       setLibraryPath("");
       await refresh();
     } catch (cause) {
-      await notice({ title: "Could not add library", message: cause instanceof ApiError ? cause.message : "Something went wrong." });
+      await notice({ title: t("appleErrors.addFailed"), message: cause instanceof ApiError ? cause.message : t("pluginUi.genericError") });
     } finally {
       setBusy(false);
     }
@@ -154,7 +157,7 @@ export default function ApplePhotosSyncCard() {
       await api.plugins.applePhotosSync(rootId);
       await refresh();
     } catch (cause) {
-      await notice({ title: "Could not start sync", message: cause instanceof ApiError ? cause.message : "Something went wrong." });
+      await notice({ title: t("appleErrors.syncFailed"), message: cause instanceof ApiError ? cause.message : t("pluginUi.genericError") });
     } finally {
       setBusy(false);
     }

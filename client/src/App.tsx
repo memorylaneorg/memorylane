@@ -23,6 +23,7 @@ import CleanupPage from "./pages/CleanupPage";
 import TagsPage from "./pages/TagsPage";
 import PluginWelcomePage from "./pages/PluginWelcomePage";
 import WelcomePage from "./pages/WelcomePage";
+import { useTranslation } from "react-i18next";
 const LocationsPage = lazy(() => import("./pages/LocationsPage"));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -36,6 +37,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function OnboardingGate({children}:{children:React.ReactNode}){const[complete,setComplete]=useState<boolean|null>(null);useEffect(()=>{void api.pluginPlatform.onboarding().then(x=>setComplete(x.complete)).catch(()=>setComplete(true));},[]);if(complete===null)return null;if(!complete)return <Navigate to="/welcome" replace/>;return <>{children}</>;}
 
 export default function App() {
+  const { t } = useTranslation();
   const { needsSetup, loading } = useAuth();
 
   if (loading) return null;
@@ -62,7 +64,7 @@ export default function App() {
         <Route path="/favorites" element={<FavoritesPage />} />
         <Route path="/cleanup" element={<CleanupPage />} />
         <Route path="/tags" element={<TagsPage />} />
-        <Route path="/locations" element={<Suspense fallback={<p className="text-sm text-muted">Loading map…</p>}><LocationsPage /></Suspense>} />
+        <Route path="/locations" element={<Suspense fallback={<p className="text-sm text-muted">{t("pages.loadingMap")}</p>}><LocationsPage /></Suspense>} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/gear-museum" element={<GearMuseumPage />} />
         <Route path="/gear-timeline" element={<GearTimelinePage />} />

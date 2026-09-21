@@ -130,7 +130,7 @@ The directory contains SQLite, thumbnails, previews, logs, and generated analysi
 
 Common environment variables are documented in `.env.example`. Release-related variables are described below. `npm run dev` and `npm start` load the repository-root `.env`; packaged applications do not depend on it.
 
-The server binds to `127.0.0.1` by default. Enable **Bind to all network interfaces** under **Settings → Service** and restart MemoryLane for LAN access, or override the saved value with `MEMORYLANE_BIND_ADDRESS`. The built-in server does not terminate TLS; use an HTTPS reverse proxy before exposing it outside a trusted network.
+The server binds to `127.0.0.1` by default. Enable **Allow Access outside this computer** under **Settings → Network** and restart MemoryLane for LAN access, or override the saved value with `MEMORYLANE_BIND_ADDRESS`. The built-in server does not terminate TLS; use an HTTPS reverse proxy before exposing it outside a trusted network.
 
 ## Release inputs and secrets
 

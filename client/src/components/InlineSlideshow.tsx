@@ -5,6 +5,7 @@ import { formatMemoryBlurb } from "../utils/blurb";
 import { displaySrc } from "../utils/mediaSrc";
 import { useEngagementTracking } from "../hooks/useEngagementTracking";
 import Viewer from "./Viewer";
+import { useTranslation } from "react-i18next";
 
 const AUTO_ADVANCE_MS = 4500;
 
@@ -12,6 +13,7 @@ const AUTO_ADVANCE_MS = 4500;
 // directly on the page - "surface photos from everywhere without doing
 // anything." Clicking the photo opens the full slideshow Viewer at that spot.
 export default function InlineSlideshow({ items }: { items: MediaDto[] }) {
+  const { t } = useTranslation();
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
@@ -46,7 +48,7 @@ export default function InlineSlideshow({ items }: { items: MediaDto[] }) {
         className="relative h-[70vh] min-h-[480px] overflow-hidden rounded-xl bg-photo-shell ring-1 ring-border"
         tabIndex={0}
         role="group"
-        aria-label={`Photo slideshow, currently showing ${current.filename}. Use left and right arrow keys to navigate, space to play or pause.`}
+        aria-label={t("common.slideshowLabel", { filename: current.filename })}
         onKeyDown={(e) => {
           if (e.key === "ArrowRight") {
             e.preventDefault();
@@ -63,7 +65,7 @@ export default function InlineSlideshow({ items }: { items: MediaDto[] }) {
         <button
           className="absolute inset-0"
           onClick={() => setFullscreenOpen(true)}
-          aria-label={`Open ${current.filename}`}
+          aria-label={t("common.openFile", { filename: current.filename })}
         >
           <img
             key={current.id}
@@ -80,14 +82,14 @@ export default function InlineSlideshow({ items }: { items: MediaDto[] }) {
           <>
             <button
               onClick={goPrev}
-              aria-label="Previous"
+              aria-label={t("common.previous")}
               className="absolute left-3 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-overlay-control text-white backdrop-blur-md transition hover:bg-overlay-control-hover"
             >
               <ChevronLeft size={18} strokeWidth={2} />
             </button>
             <button
               onClick={goNext}
-              aria-label="Next"
+              aria-label={t("common.next")}
               className="absolute right-3 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-overlay-control text-white backdrop-blur-md transition hover:bg-overlay-control-hover"
             >
               <ChevronRight size={18} strokeWidth={2} />
@@ -97,7 +99,7 @@ export default function InlineSlideshow({ items }: { items: MediaDto[] }) {
 
         <button
           onClick={() => setPlaying((p) => !p)}
-          aria-label={playing ? "Pause" : "Play"}
+          aria-label={t(playing ? "common.pause" : "common.play")}
           className="absolute right-3 bottom-3 grid size-8 place-items-center rounded-full bg-overlay-control text-white backdrop-blur-md transition hover:bg-overlay-control-hover"
         >
           {playing ? <Pause size={14} strokeWidth={2} /> : <Play size={14} strokeWidth={2} />}

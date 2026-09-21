@@ -3,6 +3,7 @@ import { Check, Layers, Star } from "lucide-react";
 import type { MediaDto } from "@memorylane/shared";
 import { api } from "../api/client";
 import { formatDuration } from "../utils/format";
+import { useTranslation } from "react-i18next";
 
 interface MediaGridProps {
   items: MediaDto[];
@@ -35,6 +36,7 @@ function badgeFor(media: MediaDto): string | null {
 // other photo browser. Keeps the small rounded corners, border ring, and
 // hover lift/zoom from the life-archive-app-inspired styling.
 export default function MediaGrid({ items, onOpen, onOpenStack, selectable = false, selectedIds, onToggleSelect, captions }: MediaGridProps) {
+  const { t } = useTranslation();
   // Optimistic per-thumbnail favorite overrides - `items` is an external prop
   // that won't reflect a toggle until the parent refetches, so track it locally.
   const [favoriteOverrides, setFavoriteOverrides] = useState<Record<number, boolean>>({});
@@ -92,8 +94,8 @@ export default function MediaGrid({ items, onOpen, onOpenStack, selectable = fal
                   e.stopPropagation();
                   onOpenStack(media);
                 }}
-                title={`Stack of ${stackCount} - click to expand`}
-                aria-label={`Stack of ${stackCount}`}
+                title={t("common.stackExpand", { count: stackCount })}
+                aria-label={t("common.stackLabel", { count: stackCount })}
                 className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-medium text-white hover:bg-black/85"
               >
                 <Layers size={11} strokeWidth={2} />
@@ -104,7 +106,7 @@ export default function MediaGrid({ items, onOpen, onOpenStack, selectable = fal
               // Inside an expanded stack there's nothing to expand - the badge
               // just marks which member is the cover.
               <span className="absolute top-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-medium text-white">
-                Cover
+                {t("common.cover")}
               </span>
             )}
             {captions?.[media.id] && !selectable && (
@@ -129,7 +131,7 @@ export default function MediaGrid({ items, onOpen, onOpenStack, selectable = fal
                 e.stopPropagation();
                 void toggleFavorite(media);
               }}
-              aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+              aria-label={isFavorite ? t("viewer.unfavorite") : t("viewer.favorite")}
               className={`absolute top-1.5 left-1.5 grid size-6 place-items-center rounded-full bg-black/50 backdrop-blur-sm transition ${
                 isFavorite ? "opacity-100" : "opacity-0 group-hover:opacity-100"
               }`}

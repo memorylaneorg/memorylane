@@ -4,14 +4,15 @@ import { BarChart3, Camera, ChevronDown, FolderOpen, History, LibraryBig, LogOut
 import { useAuth } from "../hooks/useAuth";
 import { usePluginActive } from "../utils/plugins";
 import CoreUpdateBanner from "./CoreUpdateBanner";
+import { useTranslation } from "react-i18next";
 
 // Mirrors life-archive-app's ArchiveNav.tsx: sticky glass header, serif
 // wordmark, pill-shaped nav with icon + label links, active item filled
 // solid (bg-photo-shell), icon-only circular search button at the end.
-interface NavItem { to: string; label: string; icon: LucideIcon; end?: boolean }
-const browseItem: NavItem = { to: "/", label: "Browse", icon: FolderOpen, end: true };
-const settingsItem: NavItem = { to: "/settings", label: "Settings", icon: SettingsIcon };
-const peopleItem: NavItem = { to: "/people", label: "People", icon: Users };
+interface NavItem { to: string; labelKey: string; icon: LucideIcon; end?: boolean }
+const browseItem: NavItem = { to: "/", labelKey: "navigation.browse", icon: FolderOpen, end: true };
+const settingsItem: NavItem = { to: "/settings", labelKey: "navigation.settings", icon: SettingsIcon };
+const peopleItem: NavItem = { to: "/people", labelKey: "navigation.people", icon: Users };
 
 // Every other plugin-backed page stays tucked in the Library dropdown
 // regardless of plugin state (Locations etc. work with or without their
@@ -20,15 +21,16 @@ const peopleItem: NavItem = { to: "/people", label: "People", icon: Users };
 // top-level tab only once the plugin is actually active, and left out of
 // the Library dropdown entirely rather than appearing in both places.
 const libraryItems: NavItem[] = [
-  { to: "/locations", label: "Locations", icon: MapPinned },
-  { to: "/tags", label: "Tags", icon: Tags },
-  { to: "/reports", label: "Reports", icon: BarChart3 },
-  { to: "/gear-museum", label: "Gear Museum", icon: Camera },
-  { to: "/gear-timeline", label: "Gear Timeline", icon: History },
-  { to: "/cleanup", label: "Cleanup", icon: Trash2 },
+  { to: "/locations", labelKey: "navigation.locations", icon: MapPinned },
+  { to: "/tags", labelKey: "navigation.tags", icon: Tags },
+  { to: "/reports", labelKey: "navigation.reports", icon: BarChart3 },
+  { to: "/gear-museum", labelKey: "navigation.gearMuseum", icon: Camera },
+  { to: "/gear-timeline", labelKey: "navigation.gearTimeline", icon: History },
+  { to: "/cleanup", labelKey: "navigation.cleanup", icon: Trash2 },
 ];
 
 export default function Layout() {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -68,14 +70,14 @@ export default function Layout() {
             <span>MemoryLane</span>
           </Link>
           <nav className="flex items-center gap-1 rounded-full border border-border bg-nav-pill p-1 text-[13px] font-medium text-nav-muted shadow-nav">
-            {[browseItem, { to: "/favorites", label: "Favorites", icon: Star } as NavItem, ...(peopleAvailable ? [peopleItem] : [])].map((item) => {
+            {[browseItem, { to: "/favorites", labelKey: "navigation.favorites", icon: Star } as NavItem, ...(peopleAvailable ? [peopleItem] : [])].map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   end={item.end}
-                  title={item.label}
+                  title={t(item.labelKey)}
                   // Icon-only below sm (a full "Browse / Favorites / People /
                   // Settings" text row plus search/logout doesn't fit a
                   // phone-width screen at all - it was forcing the whole page
@@ -90,54 +92,54 @@ export default function Layout() {
                   }
                 >
                   <Icon aria-hidden size={15} strokeWidth={1.8} />
-                  <span className="hidden sm:inline">{item.label}</span>
+                  <span className="hidden sm:inline">{t(item.labelKey)}</span>
                 </NavLink>
               );
             })}
             <div ref={libraryRef} className="relative">
-              <button ref={libraryButtonRef} type="button" aria-label="Library" aria-expanded={libraryOpen}
+              <button ref={libraryButtonRef} type="button" aria-label={t("navigation.library")} aria-expanded={libraryOpen}
                 aria-controls="library-menu" onClick={() => setLibraryOpen((open) => !open)}
                 className={`flex size-9 items-center justify-center gap-2 rounded-full transition sm:w-auto sm:px-3.5 ${libraryActive || libraryOpen ? "bg-photo-shell text-white" : "hover:bg-hover-soft hover:text-ink"}`}>
                 <LibraryBig aria-hidden size={15} strokeWidth={1.8} />
-                <span className="hidden sm:inline">Library</span>
+                <span className="hidden sm:inline">{t("navigation.library")}</span>
                 <ChevronDown aria-hidden size={13} className="hidden sm:inline" />
               </button>
               {libraryOpen && <div id="library-menu" className="absolute right-0 top-full z-30 mt-2 w-52 rounded-xl border border-border bg-surface p-1.5 text-ink shadow-card"
-                aria-label="Library pages">
+                aria-label={t("navigation.libraryPages")}>
                 {libraryItems.map((item) => {
                   const Icon = item.icon;
                   return <NavLink key={item.to} to={item.to} onClick={() => setLibraryOpen(false)}
                     className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? "bg-accent/15 text-accent" : "hover:bg-hover"}`}>
-                    <Icon aria-hidden size={16} strokeWidth={1.8} />{item.label}
+                    <Icon aria-hidden size={16} strokeWidth={1.8} />{t(item.labelKey)}
                   </NavLink>;
                 })}
                 <div className="my-1 border-t border-border sm:hidden" />
                 <NavLink to="/favorites" onClick={() => setLibraryOpen(false)}
                   className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm sm:hidden ${isActive ? "bg-accent/15 text-accent" : "hover:bg-hover"}`}>
-                  <Star aria-hidden size={16} />Favorites
+                  <Star aria-hidden size={16} />{t("navigation.favorites")}
                 </NavLink>
                 {peopleAvailable && <NavLink to="/people" onClick={() => setLibraryOpen(false)}
                   className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm sm:hidden ${isActive ? "bg-accent/15 text-accent" : "hover:bg-hover"}`}>
-                  <Users aria-hidden size={16} />People
+                  <Users aria-hidden size={16} />{t("navigation.people")}
                 </NavLink>}
                 <NavLink to="/settings" onClick={() => setLibraryOpen(false)}
                   className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm sm:hidden ${isActive ? "bg-accent/15 text-accent" : "hover:bg-hover"}`}>
-                  <SettingsIcon aria-hidden size={16} />Settings
+                  <SettingsIcon aria-hidden size={16} />{t("navigation.settings")}
                 </NavLink>
               </div>}
             </div>
             {[settingsItem].map((item) => {
               const Icon = item.icon;
-              return <NavLink key={item.to} to={item.to} title={item.label}
+              return <NavLink key={item.to} to={item.to} title={t(item.labelKey)}
                 className={({ isActive }) => `hidden size-9 items-center justify-center gap-2 rounded-full transition sm:flex sm:w-auto sm:px-3.5 ${isActive ? "bg-photo-shell text-white" : "hover:bg-hover-soft hover:text-ink"}`}>
                 <Icon aria-hidden size={15} strokeWidth={1.8} />
-                <span className="hidden sm:inline">{item.label}</span>
+                <span className="hidden sm:inline">{t(item.labelKey)}</span>
               </NavLink>;
             })}
             <Link
               to="/search"
-              aria-label="Search"
-              title="Search"
+              aria-label={t("navigation.search")}
+              title={t("navigation.search")}
               className={`grid size-9 place-items-center rounded-full transition ${
                 isSearchActive ? "bg-photo-shell text-white" : "hover:bg-hover-soft hover:text-ink"
               }`}
@@ -147,7 +149,7 @@ export default function Layout() {
             {user && (
               <Link
                 to="/settings"
-                title="Signed in - go to Settings to change your password"
+                title={t("navigation.signedInSettings")}
                 className="hidden px-2 text-xs text-nav-muted hover:text-ink sm:inline"
               >
                 {user.username}
@@ -155,8 +157,8 @@ export default function Layout() {
             )}
             <button
               onClick={handleLogout}
-              aria-label="Log out"
-              title="Log out"
+              aria-label={t("navigation.logout")}
+              title={t("navigation.logout")}
               className="grid size-9 place-items-center rounded-full text-nav-muted transition hover:bg-hover-soft hover:text-ink"
             >
               <LogOut aria-hidden size={15} strokeWidth={1.8} />

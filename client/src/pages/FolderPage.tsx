@@ -12,10 +12,12 @@ import StackPanel from "../components/StackPanel";
 import { useConfirm } from "../components/ConfirmDialog";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import { invertVisibleSelection } from "../utils/selection";
+import { useTranslation } from "react-i18next";
 
 const PAGE_SIZE = 200;
 
 export default function FolderPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const folderId = Number(id);
   const navigate = useNavigate();
@@ -134,16 +136,15 @@ export default function FolderPage() {
       exitSelectMode();
       refreshMedia();
     } catch (err) {
-      setStackError(err instanceof Error ? err.message : "Could not create the stack");
+      setStackError(err instanceof Error ? err.message : t("coreBrowse.folder.stackFailed"));
     }
   };
 
   const markSelected = async () => {
     const ids = [...selectedIds].filter((id) => media.some((item) => item.id === id));
     if (ids.length === 0) return;
-    const ok = await confirm({ title: `Mark ${ids.length} item(s) for deletion?`,
-      message: "They will leave normal browsing and appear in Cleanup. You can restore them there. No files will be moved yet.",
-      confirmLabel: "Mark for deletion", danger: true });
+    const ok = await confirm({ title: t("coreBrowse.folder.markTitle", { count: ids.length }),
+      message: t("coreBrowse.folder.markMessage"), confirmLabel: t("coreBrowse.folder.mark"), danger: true });
     if (!ok) return;
     setMarking(true);
     setStackError(null);
@@ -151,18 +152,18 @@ export default function FolderPage() {
       for (let i = 0; i < ids.length; i += 200) await api.cleanup.mark(ids.slice(i, i + 200));
       exitSelectMode();
       refreshMedia();
-    } catch (err) { setStackError(err instanceof Error ? err.message : "Could not mark items"); }
+    } catch (err) { setStackError(err instanceof Error ? err.message : t("coreBrowse.folder.markFailed")); }
     finally { setMarking(false); }
   };
 
   const ignoreFolder = async () => {
     if (!folder) return;
     setMenuOpen(false);
-    const itemsPhrase = folder.recursiveMediaCount > 0 ? ` and ${folder.recursiveMediaCount.toLocaleString()} indexed item(s) in it` : "";
+    const itemsPhrase = folder.recursiveMediaCount > 0 ? t("coreBrowse.folder.indexedItems", { count: folder.recursiveMediaCount }) : "";
     const ok = await confirm({
-      title: `Ignore "${folder.name}"?`,
-      message: `MemoryLane will stop scanning this folder${itemsPhrase} will be removed from your library. Original files on disk are never touched - you can remove it from the ignore list in Settings later and rescan to bring it back.`,
-      confirmLabel: "Ignore folder",
+      title: t("coreBrowse.folder.ignoreTitle", { name: folder.name }),
+      message: t("coreBrowse.folder.ignoreMessage", { items: itemsPhrase }),
+      confirmLabel: t("coreBrowse.folder.ignore"),
       danger: true,
     });
     if (!ok) {
@@ -177,7 +178,7 @@ export default function FolderPage() {
     }
   };
 
-  if (!folder) return <p className="text-sm text-muted">Loading...</p>;
+  if (!folder) return <p className="text-sm text-muted">{t("common.loading")}</p>;
 
   return (
     <div className="flex flex-col gap-5">
@@ -188,31 +189,31 @@ export default function FolderPage() {
           <div className={selectMode ? "flex w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-3" : "flex flex-wrap items-center justify-end gap-3"}>
             {selectMode ? (
               <div className="flex flex-1 flex-wrap items-center gap-2 text-sm">
-                <span className="mr-1 whitespace-nowrap font-medium text-ink"><span className="mr-1 inline-flex min-w-7 justify-center rounded-full bg-accent px-2 py-0.5 text-page">{selectedIds.size}</span> selected</span>
-                <button onClick={() => setSelectedIds(new Set(media.map((m) => m.id)))} title={`Select all ${media.length} items currently shown`} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">All shown</button>
-                <button onClick={() => setSelectedIds(new Set())} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">Clear</button>
-                <button onClick={() => setSelectedIds(invertVisibleSelection(media.map((m) => m.id), selectedIds))} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">Invert</button>
-                <button onClick={() => void markSelected()} disabled={selectedIds.size === 0 || marking} className="whitespace-nowrap rounded-md border border-red-500/30 px-3 py-1.5 text-red-600 hover:bg-red-500/10 disabled:opacity-40">{marking ? "Marking…" : "Mark for deletion"}</button>
+                <span className="mr-1 whitespace-nowrap font-medium text-ink"><span className="mr-1 inline-flex min-w-7 justify-center rounded-full bg-accent px-2 py-0.5 text-page">{selectedIds.size}</span> {t("coreBrowse.folder.selected")}</span>
+                <button onClick={() => setSelectedIds(new Set(media.map((m) => m.id)))} title={t("coreBrowse.folder.selectShownTitle", { count: media.length })} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">{t("coreBrowse.folder.allShown")}</button>
+                <button onClick={() => setSelectedIds(new Set())} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">{t("coreBrowse.folder.clear")}</button>
+                <button onClick={() => setSelectedIds(invertVisibleSelection(media.map((m) => m.id), selectedIds))} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">{t("coreBrowse.folder.invert")}</button>
+                <button onClick={() => void markSelected()} disabled={selectedIds.size === 0 || marking} className="whitespace-nowrap rounded-md border border-red-500/30 px-3 py-1.5 text-red-600 hover:bg-red-500/10 disabled:opacity-40">{marking ? t("coreBrowse.folder.marking") : t("coreBrowse.folder.mark")}</button>
                 <button
                   onClick={() => void stackSelected()}
                   disabled={selectedIds.size < 2}
                   className="flex items-center gap-1.5 whitespace-nowrap rounded-md bg-accent px-3 py-1.5 text-page hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Layers size={14} strokeWidth={1.8} />
-                  Stack selected
+                  {t("coreBrowse.folder.stackSelected")}
                 </button>
                 <button onClick={exitSelectMode} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">
-                  Done
+                  {t("coreBrowse.folder.done")}
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => setSelectMode(true)}
-                title="Select photos for cleanup or stacking"
+                title={t("coreBrowse.folder.selectHelp")}
                 className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-ink hover:bg-hover"
               >
                 <CheckSquare size={14} strokeWidth={1.8} />
-                Select
+                {t("coreBrowse.folder.select")}
               </button>
             )}
             {!selectMode && <>
@@ -224,13 +225,13 @@ export default function FolderPage() {
                 onChange={(e) => void toggleAllFiles(e.target.checked)}
                 className="cursor-pointer accent-accent"
               />
-              All files
+              {t("coreBrowse.folder.allFiles")}
             </label>
             <div ref={menuRef} className="relative">
               <button
                 onClick={() => setMenuOpen((v) => !v)}
-                aria-label="More options"
-                title="More options"
+                aria-label={t("coreBrowse.folder.more")}
+                title={t("coreBrowse.folder.more")}
                 className="grid size-8 place-items-center rounded-md text-muted hover:bg-hover hover:text-ink"
               >
                 <MoreVertical size={16} strokeWidth={1.8} />
@@ -243,7 +244,7 @@ export default function FolderPage() {
                     className="flex w-full items-center gap-2 whitespace-nowrap px-3 py-2 text-left text-sm text-muted hover:bg-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <EyeOff size={14} strokeWidth={1.8} />
-                    {ignoring ? "Ignoring..." : "Ignore folder"}
+                    {ignoring ? t("coreBrowse.folder.ignoring") : t("coreBrowse.folder.ignore")}
                   </button>
                 </div>
               )}
@@ -278,14 +279,14 @@ export default function FolderPage() {
 
       {!showAllFiles && children.length === 0 && media.length === 0 && (
         <p className="text-sm text-muted">
-          {mediaType === "all" ? "This folder is empty." : `No ${mediaType === "photo" ? "photos" : "videos"} in this folder.`}
+          {mediaType === "all" ? t("coreBrowse.folder.empty") : t(mediaType === "photo" ? "coreBrowse.folder.noPhotos" : "coreBrowse.folder.noVideos")}
         </p>
       )}
       {showAllFiles && media.length === 0 && (
         <p className="text-sm text-muted">
           {mediaType === "all"
-            ? "No files in this folder or its subfolders."
-            : `No ${mediaType === "photo" ? "photos" : "videos"} in this folder or its subfolders.`}
+            ? t("coreBrowse.folder.noFilesRecursive")
+            : t(mediaType === "photo" ? "coreBrowse.folder.noPhotosRecursive" : "coreBrowse.folder.noVideosRecursive")}
         </p>
       )}
 
@@ -293,7 +294,7 @@ export default function FolderPage() {
         <div ref={sentinelRef} className="flex min-h-[60px] items-center justify-center text-sm">
           {loadingMore && (
             <span className="text-muted">
-              Loading more ({media.length} / {mediaTotal})...
+              {t("coreBrowse.folder.loadingMore", { current: media.length, total: mediaTotal })}
             </span>
           )}
         </div>

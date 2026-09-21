@@ -5,6 +5,7 @@ import { Pencil, X } from "lucide-react";
 import { api, ApiError } from "../api/client";
 import AnalysisProgress from "../components/AnalysisProgress";
 import { useConfirm } from "../components/ConfirmDialog";
+import { useTranslation } from "react-i18next";
 
 interface PersonCardProps {
   person: PersonDto;
@@ -69,6 +70,7 @@ export function PersonCard({ person: p, removing, onRemove, editing, draftName, 
 // Everyone the library knows about, unnamed "Person N"s first so the user
 // sees what still needs a name. Off = a short explanation, not an empty grid.
 export default function PeoplePage() {
+  const { t } = useTranslation();
   const [persons, setPersons] = useState<PersonDto[] | null>(null);
   const [includeHidden, setIncludeHidden] = useState(false);
   const [off, setOff] = useState(false);
@@ -148,7 +150,7 @@ export default function PeoplePage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl font-semibold text-ink">People</h1>
+          <h1 className="font-serif text-2xl font-semibold text-ink">{t("pages.people")}</h1>
           <p className="text-sm text-muted">{persons ? `${persons.length} ${persons.length === 1 ? "person" : "people"}` : ""}</p>
         </div>
         {!off && (

@@ -4,6 +4,7 @@ import type { LocationCellDto, LocationItemDto, LocationSummaryDto, MediaDto } f
 import land from "../assets/ne_110m_land.json";
 import { api, type LocationBounds, type LocationFilters } from "../api/client";
 import Viewer from "../components/Viewer";
+import { useTranslation } from "react-i18next";
 import { landPath, MAP_SIZE, project, viewportBounds, type LandCollection, type MapViewport } from "../utils/location-map";
 
 const BASE_HEIGHT = 520;
@@ -27,6 +28,7 @@ function message(error: unknown): string {
 }
 
 export default function LocationsPage() {
+  const { t } = useTranslation();
   const [source, setSource] = useState<LocationFilters["source"]>("all");
   const [fromYear, setFromYear] = useState<number | undefined>();
   const [toYear, setToYear] = useState<number | undefined>();
@@ -168,7 +170,7 @@ export default function LocationsPage() {
 
   return <div className="space-y-5">
     <div className="flex flex-wrap items-end justify-between gap-3">
-      <div><h1 className="font-serif text-3xl font-semibold text-ink">Locations</h1>
+      <div><h1 className="font-serif text-3xl font-semibold text-ink">{t("pages.locations")}</h1>
         <p className="mt-1 text-sm text-muted">Explore where your photos were taken. The map works offline.</p></div>
       <span className="text-sm tabular-nums text-muted">{visibleCount.toLocaleString()} photos in view{loadingMap ? " · Updating…" : ""}</span>
     </div>

@@ -4,11 +4,13 @@ import type { MediaDto, TagFacetDto } from "@memorylane/shared";
 import { api } from "../api/client";
 import MediaGrid from "../components/MediaGrid";
 import Viewer from "../components/Viewer";
+import { useTranslation } from "react-i18next";
 import AnalysisProgress from "../components/AnalysisProgress";
 
 const PAGE_SIZE = 100;
 
 export default function TagsPage() {
+  const { t } = useTranslation();
   const [tags, setTags] = useState<TagFacetDto[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -94,7 +96,7 @@ export default function TagsPage() {
 
   return <div className="flex flex-col gap-6">
     <div className="flex flex-wrap items-end justify-between gap-4">
-      <div><h1 className="font-serif text-3xl font-semibold text-ink">Tags</h1>
+      <div><h1 className="font-serif text-3xl font-semibold text-ink">{t("pages.tags")}</h1>
         <p className="mt-1 text-sm text-muted">Browse imported, personal, and AI generated tags. AI labels can be removed and never mark or delete photos. <Link to="/settings" className="text-accent underline">AI setup</Link></p></div>
       <button onClick={() => void generate()} disabled={starting} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
         {starting ? "Starting…" : "Generate AI tags"}

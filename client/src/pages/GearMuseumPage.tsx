@@ -6,6 +6,7 @@ import { api } from "../api/client";
 import MediaGrid from "../components/MediaGrid";
 import Viewer from "../components/Viewer";
 import { useTheme, type Theme } from "../hooks/useTheme";
+import { useTranslation } from "react-i18next";
 
 // Enrichment (image/specs) comes from the separate memorylane-museum service
 // via /api/gear/* - see docs/architecture/2026-09-20-camera-lens-gear-database.md.
@@ -47,11 +48,7 @@ function columnsForWidth(width: number): number {
 }
 
 type SortMode = "photos" | "recent" | "name";
-const SORTS: { value: SortMode; label: string }[] = [
-  { value: "photos", label: "Most Photos" },
-  { value: "recent", label: "Recently Used" },
-  { value: "name", label: "Name" },
-];
+const SORTS: SortMode[] = ["photos", "recent", "name"];
 
 // The shelf (wood) is the one deliberately fixed (non-theme) visual - wood is
 // wood regardless of the app's light/dark theme, same as a physical display
@@ -98,6 +95,7 @@ function applyEnrichment(cameras: GearCameraSummaryDto[], cache: Map<string, Gea
 // (timeline) below just fix `mode`, they don't duplicate any of this state/
 // data-fetching logic.
 function GearPage({ mode }: { mode: "grid" | "timeline" }) {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [cameras, setCameras] = useState<GearCameraSummaryDto[] | null>(null);
@@ -236,11 +234,10 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-serif text-3xl font-semibold text-ink">{mode === "grid" ? "Gear Museum" : "Gear Timeline"}</h1>
+          <h1 className="font-serif text-3xl font-semibold text-ink">{t(mode === "grid" ? "navigation.gearMuseum" : "navigation.gearTimeline")}</h1>
           <p className="mt-1 text-sm text-muted">
             {mode === "grid"
-              ? "A collection of the cameras that have captured your library."
-              : "Your camera history, laid out chronologically."}
+              ? t("gearUi.museumIntro") : t("gearUi.timelineIntro")}
           </p>
         </div>
         <div className="relative w-full max-w-xs">
@@ -248,26 +245,25 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Search ${mode === "timeline" && timelineKind === "lens" ? "lenses" : "cameras"}...`}
+            placeholder={t(mode === "timeline" && timelineKind === "lens" ? "gearUi.searchLenses" : "gearUi.searchCameras")}
             className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-sm text-ink outline-none focus:border-accent"
           />
         </div>
       </div>
 
-      {cameras === null && <p className="text-sm text-muted">Loading...</p>}
-      {cameras?.length === 0 && <p className="text-sm text-muted">No camera EXIF data found in your library yet.</p>}
+      {cameras === null && <p className="text-sm text-muted">{t("common.loading")}</p>}
+      {cameras?.length === 0 && <p className="text-sm text-muted">{t("gearUi.noExif")}</p>}
 
       {cameras && cameras.length > 0 && (
         <>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <span className="text-sm text-muted">
-              {mode === "timeline" ? timelineItems.length : visibleCameras.length} {mode === "timeline" && timelineKind === "lens" ? "lens" : "camera"}
-              {(mode === "timeline" ? timelineItems.length : visibleCameras.length) === 1 ? "" : "s"}
+              {t(mode === "timeline" && timelineKind === "lens" ? "gearUi.lenses" : "gearUi.cameras", { count: mode === "timeline" ? timelineItems.length : visibleCameras.length })}
             </span>
             <div className="flex items-center gap-3">
               {mode === "timeline" && (
-                <div role="group" aria-label="Timeline gear type" className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
-                  {([ ["camera", "Cameras", Camera], ["lens", "Lenses", Aperture] ] as const).map(([value, label, Icon]) => (
+                <div role="group" aria-label={t("gearUi.timelineType")} className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
+                  {([ ["camera", t("gearUi.cameraPlural"), Camera], ["lens", t("gearUi.lensPlural"), Aperture] ] as const).map(([value, label, Icon]) => (
                     <button key={value} type="button" title={label} aria-label={label} aria-pressed={timelineKind === value}
                       onClick={() => { setTimelineKind(value); setSelectedCamera(null); setQuery(""); }}
                       className={`grid size-7 place-items-center rounded transition-colors ${timelineKind === value ? "bg-accent text-page" : "text-muted hover:bg-hover hover:text-ink"}`}>
@@ -277,7 +273,7 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
                 </div>
               )}
               <label className="flex items-center gap-1.5 text-sm text-muted">
-                Min photos
+                {t("gearUi.minPhotos")}
                 <input
                   type="number"
                   min={0}
@@ -289,7 +285,7 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
-                title="Refresh from the gear museum service"
+                title={t("gearUi.refresh")}
                 className="rounded-lg border border-border bg-surface p-2 text-muted hover:bg-hover hover:text-ink disabled:opacity-50"
               >
                 <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
@@ -301,8 +297,8 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
                   className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm text-ink outline-none"
                 >
                   {SORTS.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      Sort: {s.label}
+                    <option key={s} value={s}>
+                      {t("gearUi.sort", { value: t(`gearUi.sorts.${s}`) })}
                     </option>
                   ))}
                 </select>
@@ -490,6 +486,7 @@ function CameraTimeline({
   onSelect: (label: string) => void;
   onSelectYear: (label: string, year: number) => void;
 }) {
+  const { t } = useTranslation();
   const isDarkPage = theme === "dark";
   const headerTrackRef = useRef<HTMLDivElement>(null);
   const yearTotalMap = useMemo(() => new Map(yearTotals.map((y) => [Number(y.year), y.count])), [yearTotals]);
@@ -524,7 +521,7 @@ function CameraTimeline({
   // convention so the newest column stays fully inside the chart.
   const xFor = (year: number) => (maxYear - year) * GEAR_YEAR_WIDTH + GEAR_YEAR_WIDTH / 2;
 
-  if (dated.length === 0) return <p className="text-sm text-muted">No dated photos to build a timeline from.</p>;
+  if (dated.length === 0) return <p className="text-sm text-muted">{t("gearUi.noTimeline")}</p>;
 
   const totalYears = maxYear - minYear + 1;
   const timelineWidth = totalYears * GEAR_YEAR_WIDTH;
@@ -600,7 +597,7 @@ function CameraTimeline({
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold leading-tight text-ink">{displayName(camera)}</div>
-                  <div className="mt-0.5 truncate text-xs leading-tight text-muted">{camera.photoCount.toLocaleString()} photos</div>
+                  <div className="mt-0.5 truncate text-xs leading-tight text-muted">{t("common.photos", { count: camera.photoCount })}</div>
                 </div>
                 <div className="absolute inset-y-0 right-0 w-[3px]" style={{ background: color }} />
               </button>
@@ -625,7 +622,7 @@ function CameraTimeline({
                     <button
                       key={y}
                       onClick={() => onSelectYear(camera.label, y)}
-                      title={`${displayName(camera)} — ${y}: ${count.toLocaleString()} photos (${pct}% of all photos that year)`}
+                      title={t("gearUi.yearTitle", { name: displayName(camera), year: y, count, percent: pct })}
                       className="absolute transition hover:brightness-95"
                       style={{ left: x - GEAR_YEAR_WIDTH / 2, top: 0, width: GEAR_YEAR_WIDTH, height: GEAR_ROW_HEIGHT }}
                     >
@@ -694,13 +691,14 @@ function CameraDetail({
   year?: number | null;
   onClearYear?: () => void;
 }) {
+  const { t } = useTranslation();
   const selectedLensGear = selectedLens ? lenses.find((l) => l.label === selectedLens) : undefined;
   return (
     <div className={`relative rounded-xl bg-page p-6 ${onClose ? "max-h-[85vh] overflow-y-auto shadow-2xl" : "mt-6"}`}>
       {onClose && (
         <button
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t("common.close")}
           className="absolute right-4 top-4 rounded-full p-1.5 text-muted hover:bg-hover hover:text-ink"
         >
           <X size={18} />
@@ -717,21 +715,21 @@ function CameraDetail({
         <div className="min-w-0 flex-1">
           <h2 className="font-serif text-xl font-semibold text-ink">{displayName(selected)}</h2>
           <p className="text-sm text-muted">{yearRange(selected)}</p>
-          <p className="mt-1 text-ink">{selected.photoCount.toLocaleString()} memories captured</p>
+          <p className="mt-1 text-ink">{t("gearUi.memories", { count: selected.photoCount })}</p>
           <Link to={reportsHref} className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-            View all photos in Reports <ExternalLink size={14} />
+            {t("gearUi.viewReports")} <ExternalLink size={14} />
           </Link>
         </div>
       </div>
 
       <div className="mt-5 flex flex-wrap gap-x-8 gap-y-3 text-sm">
-        {selected.firstPhoto && <Stat label="First used" value={formatDate(selected.firstPhoto)} />}
-        {selected.lastPhoto && <Stat label="Last used" value={formatDate(selected.lastPhoto)} />}
-        {selected.mostUsedLens && <Stat label="Most used lens" value={`${selected.mostUsedLens} (${selected.mostUsedLensCount?.toLocaleString()})`} />}
-        {selected.distinctLocations != null && <Stat label="Places photographed" value={String(selected.distinctLocations)} />}
+        {selected.firstPhoto && <Stat label={t("gearUi.firstUsed")} value={formatDate(selected.firstPhoto)} />}
+        {selected.lastPhoto && <Stat label={t("gearUi.lastUsed")} value={formatDate(selected.lastPhoto)} />}
+        {selected.mostUsedLens && <Stat label={t("gearUi.mostLens")} value={`${selected.mostUsedLens} (${selected.mostUsedLensCount?.toLocaleString()})`} />}
+        {selected.distinctLocations != null && <Stat label={t("gearUi.places")} value={String(selected.distinctLocations)} />}
         {selected.yearBreakdown.length > 0 && (
           <div>
-            <div className="text-xs uppercase tracking-wide text-muted">Photos by year</div>
+            <div className="text-xs uppercase tracking-wide text-muted">{t("gearUi.photosByYear")}</div>
             {selected.yearBreakdown.map((y) => (
               <div key={y.year} className="font-medium text-ink">
                 {y.year} <span className="font-normal text-muted">({y.count.toLocaleString()})</span>
@@ -742,26 +740,26 @@ function CameraDetail({
       </div>
 
       <button onClick={onToggleDetails} className="mt-4 text-sm font-medium text-accent hover:underline">
-        {detailsOpen ? "Hide" : "Show"} technical details
+        {t(detailsOpen ? "gearUi.hideDetails" : "gearUi.showDetails")}
       </button>
       {detailsOpen && (
         <dl className="mt-3 space-y-1.5 text-sm">
-          {selected.brand && <Row label="Brand" value={selected.brand} />}
-          {selected.releaseDate && <Row label="Released" value={formatDate(selected.releaseDate)} />}
-          {selected.weightG != null && <Row label="Weight" value={`${Math.round(selected.weightG)} g`} />}
+          {selected.brand && <Row label={t("gearUi.brand")} value={selected.brand} />}
+          {selected.releaseDate && <Row label={t("gearUi.released")} value={formatDate(selected.releaseDate)} />}
+          {selected.weightG != null && <Row label={t("gearUi.weight")} value={`${Math.round(selected.weightG)} g`} />}
           {selected.lengthMm != null && selected.widthMm != null && selected.heightMm != null && (
-            <Row label="Size" value={`${Math.round(selected.lengthMm)} × ${Math.round(selected.widthMm)} × ${Math.round(selected.heightMm)} mm`} />
+            <Row label={t("gearUi.size")} value={`${Math.round(selected.lengthMm)} × ${Math.round(selected.widthMm)} × ${Math.round(selected.heightMm)} mm`} />
           )}
           {selected.isoMin != null && selected.isoMax != null && (
-            <Row label="ISO range" value={selected.isoMin === selected.isoMax ? String(selected.isoMin) : `${selected.isoMin}–${selected.isoMax}`} />
+            <Row label={t("gearUi.isoRange")} value={selected.isoMin === selected.isoMax ? String(selected.isoMin) : `${selected.isoMin}–${selected.isoMax}`} />
           )}
           {selected.apertureMin != null && selected.apertureMax != null && (
             <Row
-              label="Aperture range"
+              label={t("gearUi.apertureRange")}
               value={selected.apertureMin === selected.apertureMax ? `f/${selected.apertureMin}` : `f/${selected.apertureMin}–f/${selected.apertureMax}`}
             />
           )}
-          {!selected.brand && !selected.releaseDate && selected.weightG == null && <p className="text-muted">No specs resolved for this camera yet.</p>}
+          {!selected.brand && !selected.releaseDate && selected.weightG == null && <p className="text-muted">{t("gearUi.noSpecs")}</p>}
         </dl>
       )}
       {selected.imageUrl && (selected.imageLicense || selected.imageAttribution) && (
@@ -778,7 +776,7 @@ function CameraDetail({
       {lenses.length > 0 && (
         <>
           <h3 className="mb-3 mt-6 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
-            <Aperture size={14} /> Lenses used with this camera
+            <Aperture size={14} /> {t("gearUi.lensesUsed")}
           </h3>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             <button
@@ -787,7 +785,7 @@ function CameraDetail({
                 selectedLens === null ? "bg-accent/10 text-ink" : "bg-surface text-ink hover:bg-hover"
               }`}
             >
-              All lenses
+              {t("gearUi.allLenses")}
             </button>
             {lenses.map((l) => (
               <button
@@ -805,7 +803,7 @@ function CameraDetail({
                   />
                 </div>
                 <div className="mt-2 line-clamp-2 text-xs font-medium text-ink">{displayName(l)}</div>
-                <div className="text-xs text-muted">{l.photoCount.toLocaleString()} photos</div>
+                <div className="text-xs text-muted">{t("common.photos", { count: l.photoCount })}</div>
               </button>
             ))}
           </div>
@@ -816,18 +814,18 @@ function CameraDetail({
         <>
           <div className="mb-3 mt-6 flex items-center justify-between border-t border-border pt-6">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Photos from this camera{selectedLens ? ` + ${selectedLens}` : ""}
-              {year ? ` in ${year}` : ""}
+              {t("gearUi.photosFrom")}{selectedLens ? ` + ${selectedLens}` : ""}
+              {year ? ` ${t("gearUi.inYear", { year })}` : ""}
             </h3>
             <div className="flex items-center gap-3">
               {year && onClearYear && (
                 <button onClick={onClearYear} className="text-sm font-medium text-accent hover:underline">
-                  Show all years
+                  {t("gearUi.allYears")}
                 </button>
               )}
               {photoTotal > photos.length && (
                 <Link to={reportsHref} className="text-sm font-medium text-accent hover:underline">
-                  View all ({photoTotal.toLocaleString()})
+                  {t("gearUi.viewAll", { count: photoTotal })}
                 </Link>
               )}
             </div>
@@ -878,6 +876,7 @@ function GearBay({
   spotlight: boolean;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <button onClick={onClick} className="group flex flex-col items-center pb-2 text-center outline-none">
       <div className="relative flex h-32 w-full items-end justify-center overflow-hidden bg-page px-3">
@@ -923,7 +922,7 @@ function GearBay({
         <div className="truncate text-[11px] text-muted">
           {yearRange(gear)}
           {yearRange(gear) ? " · " : ""}
-          {gear.photoCount.toLocaleString()} photos
+          {t("common.photos", { count: gear.photoCount })}
         </div>
       </div>
     </button>

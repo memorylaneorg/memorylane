@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 export interface ConfirmOptions {
   title: string;
@@ -24,6 +25,7 @@ interface Pending extends ConfirmOptions {
 // foreign and can't be themed). Mount <ConfirmProvider> once near the root;
 // call `const { confirm } = useConfirm()` anywhere below it.
 export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const [pending, setPending] = useState<Pending | null>(null);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
 
@@ -37,9 +39,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const notice = useCallback<NoticeFn>(
     (opts) =>
       new Promise<void>((resolve) => {
-        setPending({ ...opts, noticeOnly: true, confirmLabel: "OK", resolve: () => resolve() });
+        setPending({ ...opts, noticeOnly: true, confirmLabel: t("common.ok"), resolve: () => resolve() });
       }),
-    [],
+    [t],
   );
 
   const close = (ok: boolean) => {
@@ -81,7 +83,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                   onClick={() => close(false)}
                   className="rounded-md border border-border px-3.5 py-2 text-sm text-ink hover:bg-hover"
                 >
-                  {pending.cancelLabel ?? "Cancel"}
+                  {pending.cancelLabel ?? t("common.cancel")}
                 </button>
               )}
               <button
@@ -92,7 +94,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                   pending.danger ? "bg-red-600 text-white hover:bg-red-700" : "bg-accent text-page hover:opacity-90"
                 }`}
               >
-                {pending.confirmLabel ?? "Continue"}
+                {pending.confirmLabel ?? t("common.continue")}
               </button>
             </div>
           </div>

@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import type { MediaDto } from "@memorylane/shared";
 import { api } from "../api/client";
 import Viewer from "../components/Viewer";
+import { useTranslation } from "react-i18next";
 
 export default function SurprisePage() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<MediaDto[] | null>(null);
   const navigate = useNavigate();
 
@@ -13,13 +15,13 @@ export default function SurprisePage() {
   }, []);
 
   if (items === null) {
-    return <p className="text-sm text-muted">Gathering memories...</p>;
+    return <p className="text-sm text-muted">{t("pages.gathering")}</p>;
   }
 
   if (items.length === 0) {
     return (
       <p className="text-sm text-muted">
-        No indexed photos yet - add a scan root and run a scan from Settings first.
+        {t("pages.noIndexed")}
       </p>
     );
   }

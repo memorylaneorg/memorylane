@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode, type RefObject } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ModalProps {
   title: string;
@@ -19,6 +20,7 @@ interface ModalProps {
 // lightbox, rather than either growing the Settings page itself or eagerly
 // rendering everything inline.
 export default function Modal({ title, onClose, children, bodyRef, wide = false }: ModalProps) {
+  const { t } = useTranslation();
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -42,7 +44,7 @@ export default function Modal({ title, onClose, children, bodyRef, wide = false 
           <h2 className="font-serif text-base font-semibold text-ink">{title}</h2>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("common.close")}
             className="grid size-7 place-items-center rounded text-muted hover:bg-hover hover:text-ink"
           >
             ✕

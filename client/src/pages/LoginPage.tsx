@@ -2,8 +2,10 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../hooks/useAuth";
+import { useTranslation } from "react-i18next";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +22,7 @@ export default function LoginPage() {
       await refresh();
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Login failed");
+      setError(err instanceof ApiError ? err.message : t("auth.loginFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -30,10 +32,10 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-page">
       <div className="w-[360px] rounded-2xl border border-border bg-surface p-10 shadow-card">
         <h1 className="font-serif text-2xl font-semibold text-ink">MemoryLane</h1>
-        <p className="mt-2 text-sm text-muted">Reconnect with the memories already sitting in your photo archive.</p>
+        <p className="mt-2 text-sm text-muted">{t("auth.intro")}</p>
         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3.5">
           <label className="flex flex-col gap-1.5 text-sm text-muted">
-            Username
+            {t("auth.username")}
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -43,7 +45,7 @@ export default function LoginPage() {
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm text-muted">
-            Password
+            {t("auth.password")}
             <input
               type="password"
               value={password}
@@ -58,7 +60,7 @@ export default function LoginPage() {
             disabled={submitting}
             className="mt-2 rounded-lg bg-accent px-4 py-3 font-semibold text-page transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {submitting ? "Logging in..." : "Log in"}
+            {submitting ? t("auth.signingIn") : t("auth.signIn")}
           </button>
         </form>
       </div>
