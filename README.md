@@ -1,14 +1,25 @@
 # MemoryLane
 
-MemoryLane is a local-first photo and video browser for rediscovering large personal archives. It indexes folders in place, builds a disposable SQLite catalog and thumbnail cache, and leaves original media untouched except when you explicitly approve a video-modernization replacement.
+[![MemoryLane — rediscover your photo archive](memorylane_card.png)](https://www.memorylaneapp.org/)
+
+### Your photos already hold a lifetime of stories. MemoryLane helps you find them again.
+
+MemoryLane turns large, scattered photo and video collections into a private archive you will actually enjoy exploring. Revisit forgotten days, browse the people and places in your life, search by camera or lens, and surface memories you did not know you were looking for—all without uploading your library to someone else's cloud.
+
+**[Visit memorylaneapp.org →](https://www.memorylaneapp.org/)**
+
+MemoryLane is local-first. It indexes folders in place, builds a disposable SQLite catalog and thumbnail cache, and leaves original media untouched except when you explicitly approve a video-modernization replacement.
 
 ## Highlights
 
 - Browse, search, favorite, and rediscover photos and videos from multiple folders.
+- Surface forgotten photos through Random Memory, This Day, Another Time, Surprise Me, and fast folder hover previews.
+- Explore geotagged photos on an offline map with year and source filters.
 - Read camera, lens, focal-length, date, and other EXIF metadata with photographer-focused reports.
-- View common RAW formats, Apple Live Photos, and browser-compatible video.
-- Group bursts into stacks and manage cleanup candidates.
+- Browse major camera RAW formats, pair matching RAW+JPEG files as one photo, and play Apple Live Photos and video.
+- Group bursts into editable stacks and clean up originals through visible, reversible trash folders that keep RAW, Live Photo, and sidecar companions together.
 - Install optional first-party plugins for AI search, similar-photo discovery, People, and Apple Photos.
+- Inspect cache and index usage and move generated MemoryLane data to another disk without relocating your originals.
 - Run from source or use the small Go desktop tray, which starts the server and opens the browser.
 
 MemoryLane is free software under the [MIT License](LICENSE). It is designed to run on hardware you control; optional AI inference also runs locally.
