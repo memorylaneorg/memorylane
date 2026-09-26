@@ -169,7 +169,6 @@ export const api = {
   },
   scanRoots: {
     list: () => request<ScanRootDto[]>("/api/scan-roots"),
-    pickFolder: () => request<{ path: string | null }>("/api/scan-roots/pick-folder", { method: "POST" }),
     create: (body: CreateScanRootRequest) => request<ScanRootDto>("/api/scan-roots", { method: "POST", body: JSON.stringify(body) }),
     update: (id: number, body: UpdateScanRootRequest) => request<ScanRootDto>(`/api/scan-roots/${id}`, { method: "PUT", body: JSON.stringify(body) }),
     remove: (id: number) => request<void>(`/api/scan-roots/${id}`, { method: "DELETE" }),

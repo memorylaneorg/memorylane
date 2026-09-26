@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronUp, ChevronDown, FolderOpen, GripVertical } from "lucide-react";
+import { ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import type { ScanRootDto, ScanStatusDto, ScanRunDto } from "@memorylane/shared";
 import { api, ApiError } from "../api/client";
 import { useConfirm } from "./ConfirmDialog";
@@ -65,7 +65,6 @@ export default function ScanFoldersManager({
 }: { onRootsChange?: (roots: ScanRootDto[]) => void; showTranscodeNudge?: boolean } = {}) {
   const [scanRoots, setScanRoots] = useState<ScanRootDto[]>([]);
   const [newPath, setNewPath] = useState("");
-  const [pickingFolder, setPickingFolder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ScanStatusDto | null>(null);
   const [openTranscodeRootId, setOpenTranscodeRootId] = useState<number | null>(null);
@@ -122,24 +121,6 @@ export default function ScanFoldersManager({
       setError(err instanceof ApiError ? err.message : t("scanning.addFailed"));
     }
   };
-
-  const chooseFolder = async () => {
-    setPickingFolder(true);
-    setError(null);
-    try {
-      const result = await api.scanRoots.pickFolder();
-      if (result.path) {
-        setNewPath(result.path);
-        await addScanRoot(result.path);
-      }
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("folderPicker.failed"));
-    } finally {
-      setPickingFolder(false);
-    }
-  };
-
-  const isLocalBrowser = typeof window !== "undefined" && ["localhost", "127.0.0.1", "[::1]", "::1"].includes(window.location.hostname);
 
   const toggleRoot = async (root: ScanRootDto) => {
     const updated = await api.scanRoots.update(root.id, { enabled: !root.enabled });
@@ -209,22 +190,29 @@ export default function ScanFoldersManager({
 
   return (
     <div>
+      <label htmlFor="scan-folder-path" className="mb-1 block text-sm font-medium text-ink">
+        {t("scanning.pathLabel")}
+      </label>
+      <p id="scan-folder-path-help" className="mb-2 text-xs text-muted">
+        {t("scanning.pathHelp")}
+      </p>
       <div className="mb-3 flex flex-wrap gap-2">
         <input
+          id="scan-folder-path"
           value={newPath}
           onChange={(e) => setNewPath(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void addScanRoot(); }}
           placeholder={t("scanning.pathPlaceholder")}
+          aria-describedby="scan-folder-path-help scan-folder-path-examples"
           className={`min-w-64 flex-1 ${inputClass}`}
         />
-        {isLocalBrowser && <button type="button" onClick={() => void chooseFolder()} disabled={pickingFolder} className={buttonClass}>
-          <FolderOpen size={15} aria-hidden className="mr-1.5 inline" />
-          {pickingFolder ? t("folderPicker.choosing") : t("folderPicker.choose")}
-        </button>}
-        <button onClick={() => void addScanRoot()} className={accentButtonClass}>
+        <button onClick={() => void addScanRoot()} disabled={!newPath.trim()} className={accentButtonClass}>
           {t("scanning.addFolder")}
         </button>
       </div>
+      <p id="scan-folder-path-examples" className="-mt-1 mb-3 text-xs text-muted">
+        {t("scanning.pathExamples")}
+      </p>
       {error && <p className="mb-3 text-sm text-red-500">{error}</p>}
       {scanRoots.length > 0 && <p className="mb-2 text-xs text-muted">{t("scanning.orderHelp")}</p>}
       <ul className="flex flex-col gap-2">

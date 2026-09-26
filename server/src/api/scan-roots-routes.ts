@@ -1,7 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import type Database from "better-sqlite3";
 import type { FastifyInstance } from "fastify";
 import {
@@ -33,35 +31,6 @@ interface MediaTypeAggRow {
   size: number | null;
   pending: number;
   failed: number;
-}
-
-const execFileAsync = promisify(execFile);
-const LOOPBACK_ADDRESSES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
-
-async function pickLocalFolder(): Promise<string | null> {
-  try {
-    if (process.platform === "win32") {
-      const script = [
-        "Add-Type -AssemblyName System.Windows.Forms",
-        "$dialog = New-Object System.Windows.Forms.FolderBrowserDialog",
-        "$dialog.Description = 'Choose a photo folder for MemoryLane'",
-        "$dialog.ShowNewFolderButton = $false",
-        "if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($dialog.SelectedPath) }",
-      ].join("; ");
-      const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-STA", "-Command", script], { windowsHide: true });
-      return stdout.trim() || null;
-    }
-    if (process.platform === "darwin") {
-      const { stdout } = await execFileAsync("osascript", ["-e", "POSIX path of (choose folder with prompt \"Choose a photo folder for MemoryLane\")"]);
-      return stdout.trim().replace(/\/$/, "") || null;
-    }
-    const { stdout } = await execFileAsync("zenity", ["--file-selection", "--directory", "--title=Choose a photo folder for MemoryLane"]);
-    return stdout.trim() || null;
-  } catch (error) {
-    const exitCode = (error as NodeJS.ErrnoException).code;
-    if (String(exitCode) === "1") return null;
-    throw error;
-  }
 }
 
 function getScanRootStats(db: Database.Database, scanRootId: number): ScanRootStatsDto {
@@ -134,18 +103,6 @@ export async function registerScanRootRoutes(app: FastifyInstance, ctx: AppConte
   app.get("/api/scan-roots", { preHandler: app.requireAuth }, async (_request, reply) => {
     const rows = db.prepare("SELECT * FROM scan_roots ORDER BY sort_order, id").all() as ScanRootRow[];
     return reply.send(rows.map((row) => toDto(db, row)));
-  });
-
-  app.post("/api/scan-roots/pick-folder", { preHandler: app.requireAuth }, async (request, reply) => {
-    if (!LOOPBACK_ADDRESSES.has(request.ip)) {
-      return reply.code(403).send({ error: "Folder selection is available only on this computer" });
-    }
-    try {
-      return reply.send({ path: await pickLocalFolder() });
-    } catch (error) {
-      request.log.warn({ err: error }, "Native folder picker is unavailable");
-      return reply.code(501).send({ error: "The native folder picker is unavailable on this system" });
-    }
   });
 
   app.post("/api/scan-roots", { preHandler: app.requireAuth }, async (request, reply) => {
