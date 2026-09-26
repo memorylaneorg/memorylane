@@ -373,34 +373,6 @@ export default function SettingsPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 font-serif text-lg font-semibold text-ink">{t("settings.ignoredFolders")}</h2>
-        <p className="mb-3 text-sm text-muted">
-          {t("settingsUi.ignoredHelp")}
-        </p>
-        <ul className="flex flex-col gap-2">
-          {ignoredPaths.map((p) => (
-            <li
-              key={p.id}
-              className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface px-3.5 py-2.5"
-            >
-              <span className="min-w-0 truncate text-ink" title={p.path}>
-                {p.path}
-              </span>
-              <button
-                onClick={() => removeIgnoredPath(p.id)}
-                aria-label={t("settings.removeIgnored")}
-                title={t("settings.removeIgnored")}
-                className="grid size-6 shrink-0 place-items-center rounded text-muted hover:bg-hover hover:text-ink"
-              >
-                <X size={14} strokeWidth={2} />
-              </button>
-            </li>
-          ))}
-          {ignoredPaths.length === 0 && <li className="text-sm text-muted">{t("settingsUi.noIgnored")}</li>}
-        </ul>
-      </section>
-
-      <section>
         <h2 className="mb-3 font-serif text-lg font-semibold text-ink">{t("settings.scanning")}</h2>
         <div className="mb-4 flex items-center gap-2 text-sm text-ink">
           <label className="flex items-center gap-2">
@@ -446,6 +418,34 @@ export default function SettingsPage() {
             )}
           </div>
         )}
+      </section>
+
+      <section>
+        <h2 className="mb-3 font-serif text-lg font-semibold text-ink">{t("settings.ignoredFolders")}</h2>
+        <p className="mb-3 text-sm text-muted">
+          {t("settingsUi.ignoredHelp")}
+        </p>
+        <ul className="flex flex-col gap-2">
+          {ignoredPaths.map((p) => (
+            <li
+              key={p.id}
+              className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface px-3.5 py-2.5"
+            >
+              <span className="min-w-0 truncate text-ink" title={p.path}>
+                {p.path}
+              </span>
+              <button
+                onClick={() => removeIgnoredPath(p.id)}
+                aria-label={t("settings.removeIgnored")}
+                title={t("settings.removeIgnored")}
+                className="grid size-6 shrink-0 place-items-center rounded text-muted hover:bg-hover hover:text-ink"
+              >
+                <X size={14} strokeWidth={2} />
+              </button>
+            </li>
+          ))}
+          {ignoredPaths.length === 0 && <li className="text-sm text-muted">{t("settingsUi.noIgnored")}</li>}
+        </ul>
       </section>
 
       </div>

@@ -175,6 +175,8 @@ export const api = {
     remove: (id: number) => request<void>(`/api/scan-roots/${id}`, { method: "DELETE" }),
     move: (id: number, direction: MoveDirection) =>
       request<ScanRootDto[]>(`/api/scan-roots/${id}/move`, { method: "POST", body: JSON.stringify({ direction }) }),
+    reorder: (ids: number[]) =>
+      request<ScanRootDto[]>("/api/scan-roots/reorder", { method: "POST", body: JSON.stringify({ ids }) }),
   },
   scans: {
     run: (scanRootId?: number) =>

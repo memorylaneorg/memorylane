@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronUp, ChevronDown, FolderOpen } from "lucide-react";
+import { ChevronUp, ChevronDown, FolderOpen, GripVertical } from "lucide-react";
 import type { ScanRootDto, ScanStatusDto, ScanRunDto } from "@memorylane/shared";
 import { api, ApiError } from "../api/client";
 import { useConfirm } from "./ConfirmDialog";
@@ -70,6 +70,7 @@ export default function ScanFoldersManager({
   const [status, setStatus] = useState<ScanStatusDto | null>(null);
   const [openTranscodeRootId, setOpenTranscodeRootId] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [draggedRootId, setDraggedRootId] = useState<number | null>(null);
   const { confirm } = useConfirm();
   const { t } = useTranslation();
 
@@ -165,6 +166,33 @@ export default function ScanFoldersManager({
     setScanRoots(await api.scanRoots.move(id, direction));
   };
 
+  const dragRootOver = (targetId: number) => {
+    if (draggedRootId === null || draggedRootId === targetId) return;
+    setScanRoots((current) => {
+      const from = current.findIndex((root) => root.id === draggedRootId);
+      const to = current.findIndex((root) => root.id === targetId);
+      if (from < 0 || to < 0) return current;
+      const next = [...current];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
+  const saveDraggedOrder = async () => {
+    if (draggedRootId === null) return;
+    setDraggedRootId(null);
+    try {
+      const roots = await api.scanRoots.reorder(scanRoots.map((root) => root.id));
+      setScanRoots(roots);
+      onRootsChange?.(roots);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("scanning.reorderFailed"));
+      const roots = await api.scanRoots.list();
+      setScanRoots(roots);
+    }
+  };
+
   const runScanNow = async (scanRootId?: number) => {
     setError(null);
     try {
@@ -201,8 +229,36 @@ export default function ScanFoldersManager({
       {scanRoots.length > 0 && <p className="mb-2 text-xs text-muted">{t("scanning.orderHelp")}</p>}
       <ul className="flex flex-col gap-2">
         {scanRoots.map((root, i) => (
-          <li key={root.id} className="flex flex-col gap-2.5 rounded-lg border border-border bg-surface px-3.5 py-2.5">
+          <li
+            key={root.id}
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+            }}
+            onDragEnter={() => dragRootOver(root.id)}
+            onDrop={(event) => {
+              event.preventDefault();
+              void saveDraggedOrder();
+            }}
+            className={`flex flex-col gap-2.5 rounded-lg border bg-surface px-3.5 py-2.5 transition-opacity ${
+              draggedRootId === root.id ? "border-accent opacity-60" : "border-border"
+            }`}
+          >
             <div className="flex items-center justify-between gap-4">
+              <span
+                draggable
+                onDragStart={(event) => {
+                  setDraggedRootId(root.id);
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", String(root.id));
+                }}
+                onDragEnd={() => setDraggedRootId(null)}
+                className="cursor-grab text-muted active:cursor-grabbing"
+                title={t("scanning.dragToReorder")}
+                aria-hidden
+              >
+                <GripVertical size={18} strokeWidth={1.8} />
+              </span>
               <div className="flex shrink-0 flex-col">
                 <button
                   onClick={() => void moveRoot(root.id, "up")}

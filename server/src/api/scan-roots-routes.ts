@@ -8,6 +8,7 @@ import {
   createScanRootRequestSchema,
   updateScanRootRequestSchema,
   moveScanRootRequestSchema,
+  reorderScanRootsRequestSchema,
   type ScanRootDto,
   type ScanRootStatsDto,
 } from "@memorylane/shared";
@@ -233,6 +234,22 @@ export async function registerScanRootRoutes(app: FastifyInstance, ctx: AppConte
 
     const updated = db.prepare("SELECT * FROM scan_roots ORDER BY sort_order, id").all() as ScanRootRow[];
     return reply.send(updated.map((row) => toDto(db, row)));
+  });
+
+  app.post("/api/scan-roots/reorder", { preHandler: app.requireAuth }, async (request, reply) => {
+    const parsed = reorderScanRootsRequestSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+
+    const existing = db.prepare("SELECT id FROM scan_roots ORDER BY sort_order, id").all() as { id: number }[];
+    const existingIds = new Set(existing.map((row) => row.id));
+    if (parsed.data.ids.length !== existing.length || parsed.data.ids.some((id) => !existingIds.has(id))) {
+      return reply.code(409).send({ error: "Scan folders changed; refresh and try again" });
+    }
+
+    const update = db.prepare("UPDATE scan_roots SET sort_order = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?");
+    db.transaction((ids: number[]) => ids.forEach((id, index) => update.run(index + 1, id)))(parsed.data.ids);
+    const rows = db.prepare("SELECT * FROM scan_roots ORDER BY sort_order, id").all() as ScanRootRow[];
+    return reply.send(rows.map((row) => toDto(db, row)));
   });
 
   app.delete("/api/scan-roots/:id", { preHandler: app.requireAuth }, async (request, reply) => {

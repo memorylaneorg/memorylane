@@ -32,6 +32,10 @@ export const moveScanRootRequestSchema = z.object({
   direction: z.enum(["up", "down"]),
 });
 
+export const reorderScanRootsRequestSchema = z.object({
+  ids: z.array(z.number().int().positive()).min(1).refine((ids) => new Set(ids).size === ids.length),
+});
+
 export const updateSettingsRequestSchema = z.object({
   archiveTitle: z.string().trim().min(1).max(100).optional(),
   bindAddress: z.string().min(1).max(64).optional(),

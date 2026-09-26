@@ -69,7 +69,21 @@ export default function HomePage() {
   useEffect(() => {
     void Promise.all([api.folders.listTop(), api.scanRoots.list(), api.plugins.list()]).then(async ([listedFolders, roots, plugins]) => {
       setAppleRootIds(roots.filter((root) => root.kind === "apple-photos").map((root) => root.id));
-      setFolders(listedFolders);
+      const folderRoots = roots.filter((root) => root.kind === "folder" && root.enabled);
+      const soleRootFolder = folderRoots.length === 1
+        ? listedFolders.find((folder) => folder.scanRootId === folderRoots[0].id)
+        : undefined;
+      if (soleRootFolder) {
+        try {
+          const children = await api.folders.children(soleRootFolder.id, 0, 500);
+          // A root containing files but no child folders must remain reachable.
+          setFolders(children.items.length > 0 ? children.items : listedFolders);
+        } catch {
+          setFolders(listedFolders);
+        }
+      } else {
+        setFolders(listedFolders);
+      }
       if (!plugins.some((plugin) => plugin.id === "apple-photos" && plugin.enabled)) return;
       const libraries = await Promise.all(roots.filter((root) => root.kind === "apple-photos" && root.enabled).map(async (root) => {
         const folder = listedFolders.find((candidate) => candidate.scanRootId === root.id);

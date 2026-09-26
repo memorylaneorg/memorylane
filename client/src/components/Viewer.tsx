@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Star, X, ZoomIn, ZoomOut } from "lucide-react";
-import { FOCAL_BUCKETS, type MediaDto } from "@memorylane/shared";
+import { FOCAL_BUCKETS, type MediaDto, type PersonDto } from "@memorylane/shared";
 import { api } from "../api/client";
 import { formatMemoryBlurb } from "../utils/blurb";
 import { displaySrc } from "../utils/mediaSrc";
@@ -42,6 +42,12 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
   const [favoriteOverrides, setFavoriteOverrides] = useState<Record<number, boolean>>({});
   const [openInPhotosError, setOpenInPhotosError] = useState<string | null>(null);
+  // People metadata is secondary to displaying the photo. Remember exactly
+  // which image has finished loading so its metadata and the next-image
+  // preload cannot compete with the current image request.
+  const [loadedMediaId, setLoadedMediaId] = useState<number | null>(null);
+  const personsPromiseRef = useRef<Promise<PersonDto[]> | null>(null);
+  const nextImagePreloadRef = useRef<HTMLImageElement | null>(null);
   // Zoom only ever applies to the still image, not video - reset on every
   // photo change (below) so zooming into one photo never carries over to
   // the next. Panning only does anything once zoom > 1; below that the
@@ -123,6 +129,25 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
   };
 
   const totalCount = total ?? items.length;
+
+  // Once the current still is fully available, warm exactly one next image.
+  // This uses the browser cache only: it does not render the image and does
+  // not fire shown/viewed engagement events. Do not wrap while more paginated
+  // items are still unavailable, and do not try to preload videos as images.
+  useEffect(() => {
+    nextImagePreloadRef.current = null;
+    if (!current || loadedMediaId !== current.id || items.length < 2) return;
+    const nextIndex = index + 1 < items.length ? index + 1 : items.length >= totalCount ? 0 : -1;
+    if (nextIndex < 0) return;
+    const next = items[nextIndex];
+    if (!next || next.id === current.id || next.mediaType === "video") return;
+    const preload = new Image();
+    preload.src = displaySrc(next, false);
+    nextImagePreloadRef.current = preload;
+    return () => {
+      nextImagePreloadRef.current = null;
+    };
+  }, [current, index, items, loadedMediaId, totalCount]);
 
   const goNext = useCallback(() => {
     setFallback(false);
@@ -276,12 +301,23 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
   const exifLinkClass = "underline decoration-white/30 underline-offset-2 hover:decoration-white hover:text-white";
 
   // Names of people in the current photo (People must be on; otherwise the
-  // endpoint 404s and we show nothing). Loaded lazily per photo.
+  // endpoint 404s and we show nothing). Wait until the image has loaded so
+  // this optional metadata never delays it, and reuse the people list for
+  // every photo viewed during this Viewer session.
   const [peopleLine, setPeopleLine] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     setPeopleLine(null);
-    Promise.all([api.media.faces(current.id), api.persons.list(true)])
+    if (loadedMediaId !== current.id) return () => {
+      cancelled = true;
+    };
+    if (!personsPromiseRef.current) {
+      personsPromiseRef.current = api.persons.list(true).catch((error) => {
+        personsPromiseRef.current = null;
+        throw error;
+      });
+    }
+    Promise.all([api.media.faces(current.id), personsPromiseRef.current])
       .then(([faces, persons]) => {
         if (cancelled) return;
         const names = [...new Set(faces.filter((f) => f.personId !== null).map((f) => persons.find((p) => p.id === f.personId)?.displayName).filter(Boolean))];
@@ -291,7 +327,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
     return () => {
       cancelled = true;
     };
-  }, [current.id]);
+  }, [current.id, loadedMediaId]);
 
   const controlButtonClass =
     "h-12 w-12 rounded-full border-none bg-overlay-control text-2xl text-white transition-colors hover:bg-overlay-control-hover";
@@ -379,6 +415,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
               src={api.media.fileUrl(current.id)}
               controls
               autoPlay
+              onLoadedData={() => setLoadedMediaId(current.id)}
               // When the slideshow is running, a video's own length stands in
               // for the fixed photo interval - it advances when playback
               // actually finishes rather than being cut off mid-clip.
@@ -393,6 +430,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
               src={api.media.fileUrl(current.livePhotoVideoId)}
               autoPlay
               controls
+              onLoadedData={() => setLoadedMediaId(current.id)}
               onEnded={() => {
                 setLivePlaying(false);
                 if (playing) goNext();
@@ -405,6 +443,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
               src={displaySrc(current, fallback)}
               alt={current.filename}
               draggable={false}
+              onLoad={() => setLoadedMediaId(current.id)}
               onError={() => {
                 if (!fallback) setFallback(true);
               }}
