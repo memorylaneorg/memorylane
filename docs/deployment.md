@@ -300,6 +300,21 @@ dist/updates/win32-x64/manifest.json
 
 The command does not upload anything.
 
+After the production build succeeds, install and verify the generated package.
+Then commit and push the exact release source and create its tag:
+
+```powershell
+git add .
+git commit -m "Release vX.Y.Z"
+git push origin main
+npm run release:tag
+```
+
+`release:tag` reads the version from the root `package.json`, creates the
+annotated `v<version>` tag, and pushes that tag to `origin`. It requires a clean
+working tree and replaces both manual `git tag` and `git push origin <tag>`
+commands. Tag after verifying the installer and before uploading the release.
+
 ## One-command macOS release build
 
 This is the normal Apple Silicon release command. It builds core, prepares and optionally signs AI Runtime and Apple Photos, builds and verifies the macOS catalog, creates the app and DMG, notarizes when configured, and generates the matching core-update manifest.
@@ -329,6 +344,19 @@ dist/updates/darwin-arm64/manifest.json
 ```
 
 The command does not upload anything.
+
+After the production build succeeds, install and verify the generated package.
+Then commit and push the exact release source and create its tag:
+
+```bash
+git add .
+git commit -m "Release vX.Y.Z"
+git push origin main
+npm run release:tag
+```
+
+The command creates and pushes the annotated tag for the version in
+`package.json`. Do not also create the tag manually.
 
 ## Generate a core-update manifest manually
 
@@ -399,10 +427,12 @@ Windows and macOS catalogs are independent. Publishing one does not modify the o
 5. Install the generated package on a clean or isolated machine.
 6. Verify first-run setup, scan folders, plugin onboarding, tray launch, browser opening, and Settings → Check for updates.
 7. Verify the generated catalog and core-update manifest again.
-8. Upload the platform catalog.
-9. Upload the installer and core-update manifest.
-10. Confirm the public catalog, plugin artifacts, installer, and update manifest are reachable over HTTPS.
-11. Keep the prior catalog directory available for operational rollback.
+8. Commit and push the exact release source; confirm the working tree is clean.
+9. Run `npm run release:tag` to create and push the annotated tag for the current package version.
+10. Upload the platform catalog.
+11. Upload the installer and core-update manifest.
+12. Confirm the public catalog, plugin artifacts, installer, and update manifest are reachable over HTTPS.
+13. Keep the prior catalog directory available for operational rollback.
 
 ## Upgrade behavior
 

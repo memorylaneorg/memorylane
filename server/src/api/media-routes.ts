@@ -49,6 +49,13 @@ export async function registerMediaRoutes(app: FastifyInstance, ctx: AppContext)
     if (row?.source_kind === "apple-photos" && !isApplePhotosEnabled(db)) return undefined;
     return row;
   };
+  const visibleSourceById = (id: number): { source_kind: string } | undefined => {
+    const row = db.prepare("SELECT source_kind FROM media WHERE id = ? AND status = 'active'").get(id) as
+      | { source_kind: string }
+      | undefined;
+    if (row?.source_kind === "apple-photos" && !isApplePhotosEnabled(db)) return undefined;
+    return row;
+  };
 
   // Library-wide filtered listing - backs the Reports grid. Same filter
   // vocabulary as /api/reports/facets and export.csv (see reports-routes.ts).
@@ -76,7 +83,7 @@ export async function registerMediaRoutes(app: FastifyInstance, ctx: AppContext)
     if (!parsed.success || Number.isNaN(id)) {
       return reply.code(400).send({ error: "Invalid input" });
     }
-    const exists = visibleById(id);
+    const exists = visibleSourceById(id);
     if (!exists) return reply.code(404).send({ error: "Media not found" });
 
     return reply.send(engagement.setFavorite(id, parsed.data.favorite));
@@ -90,7 +97,7 @@ export async function registerMediaRoutes(app: FastifyInstance, ctx: AppContext)
   app.post("/api/media/:id/shown", { preHandler: app.requireAuth }, async (request, reply) => {
     const id = Number((request.params as { id: string }).id);
     if (Number.isNaN(id)) return reply.code(400).send({ error: "Invalid id" });
-    const exists = visibleById(id);
+    const exists = visibleSourceById(id);
     if (!exists) return reply.code(404).send({ error: "Media not found" });
     engagement.recordShown(id);
     return reply.send({ ok: true });
@@ -99,7 +106,7 @@ export async function registerMediaRoutes(app: FastifyInstance, ctx: AppContext)
   app.post("/api/media/:id/viewed", { preHandler: app.requireAuth }, async (request, reply) => {
     const id = Number((request.params as { id: string }).id);
     if (Number.isNaN(id)) return reply.code(400).send({ error: "Invalid id" });
-    const exists = visibleById(id);
+    const exists = visibleSourceById(id);
     if (!exists) return reply.code(404).send({ error: "Media not found" });
     engagement.recordViewed(id);
     return reply.send({ ok: true });

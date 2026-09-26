@@ -4,7 +4,7 @@ import type { SettingsDto, FaceModelName } from "@memorylane/shared";
 const DEFAULTS: SettingsDto = {
   archiveTitle: "MemoryLane",
   bindAddress: "127.0.0.1",
-  museumServiceEnabled: true,
+  museumServiceEnabled: false,
   port: 4280,
   scanIntervalDays: null,
   scanScheduleEnabled: false,

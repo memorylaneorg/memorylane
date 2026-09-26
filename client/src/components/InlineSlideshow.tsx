@@ -28,16 +28,19 @@ export default function InlineSlideshow({ items }: { items: MediaDto[] }) {
   const goPrev = useCallback(() => setIndex((i) => (i - 1 + items.length) % items.length), [items.length]);
 
   useEffect(() => {
-    if (playing && items.length > 1) {
+    // The inline slideshow remains mounted behind the fullscreen Viewer.
+    // Pause it while that overlay is open so a hidden slideshow does not keep
+    // loading files or recording shown/viewed events in the background.
+    if (playing && !fullscreenOpen && items.length > 1) {
       timerRef.current = setInterval(goNext, AUTO_ADVANCE_MS);
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [playing, goNext, items.length]);
+  }, [playing, fullscreenOpen, goNext, items.length]);
 
   const current = items[index];
-  useEngagementTracking(current?.id);
+  useEngagementTracking(fullscreenOpen ? undefined : current?.id);
   if (!current) return null;
 
   const blurb = formatMemoryBlurb(current);

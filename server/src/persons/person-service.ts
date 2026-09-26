@@ -57,11 +57,22 @@ function cosine(a: Float32Array, b: Float32Array): number {
 }
 
 const PERSON_SELECT = `
+  WITH person_face_stats AS (
+    SELECT f.person_id,
+      SUM(CASE WHEN media.status = 'active' AND ${ACTIVE_SOURCE_SQL} AND ${UNMARKED_MEDIA_SQL} THEN 1 ELSE 0 END) AS face_count,
+      COUNT(DISTINCT CASE WHEN media.status = 'active' AND ${ACTIVE_SOURCE_SQL} AND ${UNMARKED_MEDIA_SQL} THEN f.media_id END) AS media_count,
+      SUM(CASE WHEN media.source_kind = 'apple-photos' AND ${UNMARKED_MEDIA_SQL} THEN 1 ELSE 0 END) AS apple_face_count
+    FROM faces f
+    JOIN media ON media.id = f.media_id
+    WHERE f.person_id IS NOT NULL
+    GROUP BY f.person_id
+  )
   SELECT p.*,
-    (SELECT COUNT(*) FROM faces f JOIN media ON media.id = f.media_id WHERE f.person_id = p.id AND media.status = 'active' AND ${ACTIVE_SOURCE_SQL} AND ${UNMARKED_MEDIA_SQL}) AS face_count,
-    (SELECT COUNT(DISTINCT f.media_id) FROM faces f JOIN media ON media.id = f.media_id WHERE f.person_id = p.id AND media.status = 'active' AND ${ACTIVE_SOURCE_SQL} AND ${UNMARKED_MEDIA_SQL}) AS media_count,
-    (SELECT COUNT(*) FROM faces f JOIN media m ON m.id = f.media_id WHERE f.person_id = p.id AND m.source_kind = 'apple-photos' AND m.id NOT IN (SELECT media_id FROM deletion_marks)) AS apple_face_count
-  FROM persons p`;
+    COALESCE(s.face_count, 0) AS face_count,
+    COALESCE(s.media_count, 0) AS media_count,
+    COALESCE(s.apple_face_count, 0) AS apple_face_count
+  FROM persons p
+  LEFT JOIN person_face_stats s ON s.person_id = p.id`;
 
 // Identity management (design doc §10.2/10.3). Two automatic paths -
 // incremental kNN assignment for each new face, and periodic discovery over

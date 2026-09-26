@@ -2,6 +2,10 @@ import { nanoid } from "nanoid";
 import type Database from "better-sqlite3";
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days, sliding
+// Refresh a sliding session at most once per day. Most authenticated requests
+// are reads (including every image/thumbnail), so rewriting the same session
+// row on each one creates avoidable SQLite write contention.
+const SESSION_REFRESH_WINDOW_MS = 6 * 24 * 60 * 60 * 1000;
 
 export interface SessionRow {
   id: string;
@@ -31,8 +35,10 @@ export class SessionStore {
       this.destroy(sessionId);
       return null;
     }
-    const newExpiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
-    this.db.prepare("UPDATE sessions SET expires_at = ? WHERE id = ?").run(newExpiresAt, sessionId);
+    if (new Date(row.expires_at).getTime() < Date.now() + SESSION_REFRESH_WINDOW_MS) {
+      const newExpiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+      this.db.prepare("UPDATE sessions SET expires_at = ? WHERE id = ?").run(newExpiresAt, sessionId);
+    }
     return row.user_id;
   }
 

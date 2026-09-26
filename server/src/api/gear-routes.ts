@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { GearCameraEnrichmentDto, GearCameraSummaryDto, GearLensSummaryDto, GearLensTimelineDto } from "@memorylane/shared";
 import type { AppContext } from "../context.js";
+import { SettingsRepo } from "../db/settings-repo.js";
 
 // Points at the memorylane-museum service (separate repo - see its own
 // docs/design.md for why). Override to http://localhost:4281 in root .env
@@ -62,6 +63,9 @@ function imageUrl(g: MuseumGear | null | undefined): string | null {
 
 export async function registerGearRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   const { db } = ctx;
+  const settings = new SettingsRepo(db);
+  const museumLookupIfEnabled = (kind: "camera" | "lens", labels: string[]) =>
+    settings.getAll().museumServiceEnabled ? museumLookup(kind, labels) : Promise.resolve(new Map<string, MuseumGear | null>());
 
   const mostUsedLens = db.prepare(
     `SELECT mx.lens_id AS label, COUNT(*) AS photoCount
@@ -168,6 +172,7 @@ export async function registerGearRoutes(app: FastifyInstance, ctx: AppContext):
     const { labels } = request.body as { labels?: unknown };
     if (!Array.isArray(labels) || labels.length === 0) return reply.send({});
     const validLabels = labels.filter((l): l is string => typeof l === "string");
+    if (!settings.getAll().museumServiceEnabled) return reply.send({});
     const museum = await museumLookup("camera", validLabels);
     const result: Record<string, GearCameraEnrichmentDto> = {};
     for (const label of validLabels) {
@@ -220,7 +225,7 @@ export async function registerGearRoutes(app: FastifyInstance, ctx: AppContext):
        FROM media_exif mx JOIN media ON media.id = mx.media_id
        WHERE mx.lens_id = ? AND ${dateBound} GROUP BY year ORDER BY photoCount DESC`,
     );
-    const museum = await museumLookup("lens", rows.map((row) => row.label));
+    const museum = await museumLookupIfEnabled("lens", rows.map((row) => row.label));
     const dto: GearLensTimelineDto[] = rows.map((row) => {
       const gear = museum.get(row.label);
       const breakdown = lensYears.all(row.label, DATE_FLOOR) as Array<{ year: string; photoCount: number }>;
@@ -250,7 +255,7 @@ export async function registerGearRoutes(app: FastifyInstance, ctx: AppContext):
       )
       .all(camera) as { label: string; photoCount: number }[];
 
-    const museum = await museumLookup("lens", rows.map((r) => r.label));
+    const museum = await museumLookupIfEnabled("lens", rows.map((r) => r.label));
     const dto: GearLensSummaryDto[] = rows.map((r) => {
       const g = museum.get(r.label);
       return {

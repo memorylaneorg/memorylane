@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown, FolderOpen } from "lucide-react";
 import type { ScanRootDto, ScanStatusDto, ScanRunDto } from "@memorylane/shared";
 import { api, ApiError } from "../api/client";
 import { useConfirm } from "./ConfirmDialog";
@@ -65,6 +65,7 @@ export default function ScanFoldersManager({
 }: { onRootsChange?: (roots: ScanRootDto[]) => void; showTranscodeNudge?: boolean } = {}) {
   const [scanRoots, setScanRoots] = useState<ScanRootDto[]>([]);
   const [newPath, setNewPath] = useState("");
+  const [pickingFolder, setPickingFolder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ScanStatusDto | null>(null);
   const [openTranscodeRootId, setOpenTranscodeRootId] = useState<number | null>(null);
@@ -105,11 +106,11 @@ export default function ScanFoldersManager({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status?.running]);
 
-  const addScanRoot = async () => {
-    if (!newPath.trim()) return;
+  const addScanRoot = async (selectedPath = newPath) => {
+    if (!selectedPath.trim()) return;
     setError(null);
     try {
-      const root = await api.scanRoots.create({ path: newPath.trim() });
+      const root = await api.scanRoots.create({ path: selectedPath.trim() });
       setScanRoots((prev) => {
         const next = [...prev, root];
         onRootsChange?.(next);
@@ -120,6 +121,24 @@ export default function ScanFoldersManager({
       setError(err instanceof ApiError ? err.message : t("scanning.addFailed"));
     }
   };
+
+  const chooseFolder = async () => {
+    setPickingFolder(true);
+    setError(null);
+    try {
+      const result = await api.scanRoots.pickFolder();
+      if (result.path) {
+        setNewPath(result.path);
+        await addScanRoot(result.path);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("folderPicker.failed"));
+    } finally {
+      setPickingFolder(false);
+    }
+  };
+
+  const isLocalBrowser = typeof window !== "undefined" && ["localhost", "127.0.0.1", "[::1]", "::1"].includes(window.location.hostname);
 
   const toggleRoot = async (root: ScanRootDto) => {
     const updated = await api.scanRoots.update(root.id, { enabled: !root.enabled });
@@ -162,14 +181,18 @@ export default function ScanFoldersManager({
 
   return (
     <div>
-      <div className="mb-3 flex gap-2">
+      <div className="mb-3 flex flex-wrap gap-2">
         <input
           value={newPath}
           onChange={(e) => setNewPath(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void addScanRoot(); }}
           placeholder={t("scanning.pathPlaceholder")}
-          className={`flex-1 ${inputClass}`}
+          className={`min-w-64 flex-1 ${inputClass}`}
         />
+        {isLocalBrowser && <button type="button" onClick={() => void chooseFolder()} disabled={pickingFolder} className={buttonClass}>
+          <FolderOpen size={15} aria-hidden className="mr-1.5 inline" />
+          {pickingFolder ? t("folderPicker.choosing") : t("folderPicker.choose")}
+        </button>}
         <button onClick={() => void addScanRoot()} className={accentButtonClass}>
           {t("scanning.addFolder")}
         </button>

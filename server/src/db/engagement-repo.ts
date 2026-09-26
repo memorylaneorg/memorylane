@@ -8,26 +8,25 @@ import { buildMediaQuery, mediaCountSql } from "../query/media-query.js";
 export class EngagementRepo {
   constructor(private db: Database.Database) {}
 
-  private ensureRow(mediaId: number): void {
-    this.db.prepare("INSERT OR IGNORE INTO media_engagement (media_id) VALUES (?)").run(mediaId);
-  }
-
   setFavorite(mediaId: number, favorite: boolean): FavoriteResultDto {
-    this.ensureRow(mediaId);
     const favoritedAt = favorite ? new Date().toISOString() : null;
     this.db
-      .prepare("UPDATE media_engagement SET favorite = ?, favorited_at = ? WHERE media_id = ?")
-      .run(favorite ? 1 : 0, favoritedAt, mediaId);
+      .prepare(`INSERT INTO media_engagement (media_id, favorite, favorited_at) VALUES (?, ?, ?)
+                ON CONFLICT(media_id) DO UPDATE SET favorite = excluded.favorite, favorited_at = excluded.favorited_at`)
+      .run(mediaId, favorite ? 1 : 0, favoritedAt);
     return { mediaId, favorite, favoritedAt };
   }
 
   // Called once per photo each time it's displayed prominently (slideshow,
   // Surprise Me, fullscreen viewer) - never for grid/search thumbnails.
   recordShown(mediaId: number): void {
-    this.ensureRow(mediaId);
     this.db
       .prepare(
-        "UPDATE media_engagement SET shown_count = shown_count + 1, last_shown_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE media_id = ?",
+        `INSERT INTO media_engagement (media_id, shown_count, last_shown_at)
+         VALUES (?, 1, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+         ON CONFLICT(media_id) DO UPDATE SET
+           shown_count = media_engagement.shown_count + 1,
+           last_shown_at = excluded.last_shown_at`,
       )
       .run(mediaId);
   }
@@ -35,14 +34,14 @@ export class EngagementRepo {
   // Called once after a photo has stayed on screen for ~2s (VIEW_MEANINGFUL_MS)
   // - the client is responsible for that debounce; this just records the transition.
   recordViewed(mediaId: number): void {
-    this.ensureRow(mediaId);
     this.db
       .prepare(
-        `UPDATE media_engagement SET
-           view_count = view_count + 1,
-           first_viewed_at = COALESCE(first_viewed_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-           last_viewed_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
-         WHERE media_id = ?`,
+        `INSERT INTO media_engagement (media_id, view_count, first_viewed_at, last_viewed_at)
+         VALUES (?, 1, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+         ON CONFLICT(media_id) DO UPDATE SET
+           view_count = media_engagement.view_count + 1,
+           first_viewed_at = COALESCE(media_engagement.first_viewed_at, excluded.first_viewed_at),
+           last_viewed_at = excluded.last_viewed_at`,
       )
       .run(mediaId);
   }

@@ -1,7 +1,7 @@
 {
   "name": "memorylane",
   "private": true,
-  "version": "1.0.7",
+  "version": "1.1.0",
   "description": "Self-hosted photo and video browser for rediscovering existing photo archives.",
   "license": "MIT",
   "workspaces": [
@@ -30,6 +30,7 @@
     "plugins:prepare-apple-photos": "node scripts/prepare-apple-photos-plugin.mjs",
     "plugins:keygen": "node scripts/generate-plugin-signing-key.mjs",
     "version:bump": "node scripts/bump-version.mjs",
+    "release:tag": "node scripts/tag-release.mjs",
     "desktop:runtime": "node tray-go/scripts/prepare-runtime.mjs",
     "desktop:package": "powershell -ExecutionPolicy Bypass -File tray-go/scripts/package-windows.ps1",
     "desktop:installer": "powershell -ExecutionPolicy Bypass -File tray-go/scripts/package-windows.ps1 -Installer",
