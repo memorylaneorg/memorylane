@@ -13,6 +13,7 @@ import { PluginServiceSupervisor } from "../../src/plugin-platform/service-super
 import { PluginModuleHost } from "../../src/plugin-platform/module-host-client.js";
 import { PluginCommandRunner } from "../../src/plugin-platform/command-runner.js";
 import { PluginStateStore } from "../../src/plugin-platform/state-store.js";
+import { scanDevPlugins } from "../../src/plugin-platform/dev-catalog.js";
 import { PluginManager } from "../../src/plugin-platform/manager.js";
 
 const scratchDirs: string[] = [];
@@ -354,6 +355,21 @@ describe("PluginServiceSupervisor", () => {
 });
 
 describe("PluginModuleHost", () => {
+  it("binds core calls to the activating plugin and propagates denial", async () => {
+    const pluginDir = scratch();
+    fs.writeFileSync(path.join(pluginDir, "plugin.mjs"), `export async function activate(context){const initial=await context.callCore('config',{});return {call(method,payload){return method==='initial'?initial:context.callCore(method,payload)},stop(){}}}`);
+    const manifest: PluginManifest = {...serviceManifest("unused"), entry:{kind:"module",script:"plugin.mjs"},health:undefined,restart:undefined};
+    const host = new PluginModuleHost(()=>pluginDir,new URL("../../src/plugin-platform/module-host.ts",import.meta.url),["--import","tsx"]);
+    host.setCoreHandler(async(id,method,payload)=>{expect(id).toBe(manifest.id);if(method!=='config')throw Error('Denied');return {id,payload};});
+    try {
+      await host.load(manifest,pluginDir);
+      await expect(host.call(manifest.id,'initial',{})).resolves.toEqual({id:manifest.id,payload:{}});
+      await expect(host.call(manifest.id,'forbidden',{})).rejects.toThrow();
+      await host.unload(manifest.id);
+      await expect(host.call(manifest.id,'config',{})).rejects.toThrow();
+    } finally {await host.shutdown();}
+  });
+
   it("loads multiple TypeScript-style modules in the shared host and calls them over IPC", async () => {
     const pluginDir = scratch();
     fs.writeFileSync(path.join(pluginDir, "plugin.mjs"), `export async function activate(context){return{call(method,payload){return{method,payload,pluginId:context.pluginId}},stop(){}}}`);
@@ -430,3 +446,12 @@ function crc32(input: Buffer): number {
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
+
+
+it("discovers development-only optional plugins without passing build metadata into the manifest", () => {
+  const root=scratch(), pluginDir=path.join(root,'optional','tv');
+  fs.mkdirSync(pluginDir,{recursive:true});
+  const {platform,...template}=serviceManifest('unused');
+  fs.writeFileSync(path.join(pluginDir,'manifest.template.json'),JSON.stringify({...template,developmentOnly:true}));
+  expect(scanDevPlugins(root,platform).has(template.id)).toBe(true);
+});

@@ -1,0 +1,22 @@
+{
+  "id": "com.memorylane.tv-sharing",
+  "name": "TV Photo Sharing (DLNA)",
+  "description": "Optional local-network photo browsing for DLNA TVs. Sharing stays off until configured.",
+  "version": "1.1.2",
+  "pluginApi": 1,
+  "requiresCore": ">=1.1.2",
+  "required": false,
+  "entry": {
+    "kind": "module",
+    "script": "module/index.mjs"
+  },
+  "capabilities": [
+    "tv.photo-sharing"
+  ],
+  "dependencies": [],
+  "licenseFiles": [
+    "licenses/LICENSE.txt",
+    "licenses/xmldom-MIT.txt"
+  ],
+  "developmentOnly": true
+}

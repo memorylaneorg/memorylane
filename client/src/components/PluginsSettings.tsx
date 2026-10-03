@@ -6,6 +6,7 @@ import { isPluginActive } from "../utils/plugins";
 import { CORE_UPDATE_REFRESH_EVENT } from "./CoreUpdateBanner";
 import PluginInstallProgress from "./PluginInstallProgress";
 import { useTranslation } from "react-i18next";
+import TvSharingSettings from "./TvSharingSettings";
 
 export { ApplePhotosPluginPanel } from "./ApplePhotosSyncCard";
 
@@ -104,6 +105,7 @@ export default function PluginsSettings() {
       </button>}
       {!item.required && item.state !== "available" && <button type="button" className={buttonClass} disabled={busy} onClick={() => void removePlatformPlugin(item)}>{t("pluginUi.remove")}</button>}</div></div>
     {installingPlugin?.id === item.id && <PluginInstallProgress label={installingPlugin.label} />}
+    {item.id === "com.memorylane.tv-sharing" && isPluginActive(item) && <TvSharingSettings />}
   </section>;
   return <div className="space-y-6">
     <div className="flex items-center justify-between gap-4"><p className="text-sm text-muted">{t("pluginUi.updateIntro")}</p><button type="button" className={buttonClass} disabled={busy} onClick={()=>{setBusy(true);void Promise.all([api.pluginPlatform.checkUpdates(),api.coreUpdate.check()]).then(()=>{window.dispatchEvent(new Event(CORE_UPDATE_REFRESH_EVENT));return refresh();}).catch(cause=>notice({title:t("pluginUi.updateFailed"),message:cause instanceof Error?cause.message:t("pluginUi.genericError")})).finally(()=>setBusy(false));}}>{t("pluginUi.checkUpdates")}</button></div>

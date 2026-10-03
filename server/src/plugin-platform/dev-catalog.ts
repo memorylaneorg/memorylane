@@ -34,7 +34,7 @@ export function scanDevPlugins(pluginsRoot: string, platform: PluginPlatform): M
         // same shape scripts/build-plugin-repository.mjs reads, just resolved
         // against the platform this dev server is actually running on
         // instead of every platform a release build would produce.
-        const { buildPlatforms = [...PLUGIN_PLATFORMS] as string[], ...template } = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as { buildPlatforms?: string[] };
+        const { buildPlatforms = [...PLUGIN_PLATFORMS] as string[], developmentOnly: _developmentOnly, ...template } = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as { buildPlatforms?: string[]; developmentOnly?: boolean };
         const allowedPlatforms = buildPlatforms.includes("host") ? [platform] : buildPlatforms;
         if (!allowedPlatforms.includes(platform)) continue;
         const manifest = PluginManifestSchema.parse({ ...template, platform });

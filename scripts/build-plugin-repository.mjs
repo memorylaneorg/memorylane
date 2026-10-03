@@ -10,7 +10,7 @@ const root = path.resolve(import.meta.dirname, "..");
 // venvs, test caches - see plugins/optional/com.memorylane.ai-runtime/python/)
 // rather than shipped content - never descended into by either the plugin
 // discovery walk or the packaging walk below.
-const PLUGIN_SOURCE_DIR_NAMES = ["src", "python"];
+const PLUGIN_SOURCE_DIR_NAMES = ["src", "python", "test", "tests"];
 // darwin-x64 stays a valid PLUGIN_PLATFORMS value (schema-wise) but isn't a
 // supported release target for now. win32-x64/darwin-arm64 are, but only
 // the one matching the machine actually running this - a plain
@@ -100,7 +100,8 @@ for (const platform of platforms) {
   const releases = [];
   for (const pluginRoot of findPluginRoots(sourceRoot)) {
     const rawTemplate = JSON.parse(fs.readFileSync(path.join(pluginRoot, "manifest.template.json"), "utf8"));
-    const { buildPlatforms = PLUGIN_PLATFORMS, ...template } = rawTemplate;
+    const { buildPlatforms = PLUGIN_PLATFORMS, developmentOnly = false, ...template } = rawTemplate;
+    if (developmentOnly && !development) continue;
     // "host" means the native binary can only be built on the machine it runs
     // on (no cross-compiling a PyInstaller executable for another OS/arch), so
     // it never produces more than one artifact per build. Combined with an

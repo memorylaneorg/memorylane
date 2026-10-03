@@ -56,3 +56,13 @@ areas, retain normal browser caching and a valid Referer, and do not add bulk ti
 fetching or offline downloads. Tile requests reveal the viewed map area and the
 client's IP address to the provider; original photos are not uploaded. The bundled
 Natural Earth outline remains the offline fallback. Reviewed 2026-10-03.
+
+## Optional TV Photo Sharing plugin
+
+- `@xmldom/xmldom` 0.9.12 — MIT, no declared runtime dependencies.
+  Source: https://github.com/xmldom/xmldom. The unmodified runtime is vendored
+  exclusively in `plugins/optional/com.memorylane.tv-sharing/vendor/xmldom`.
+  Copyright and license: `licenses/xmldom-MIT.txt` in the plugin package.
+  Artifact hash and provenance: plugin `vendor/README.md`.
+- SSDP, HTTP and eventing use Node standard libraries; no DLNA server code from
+  GPL projects or third-party device images are bundled.

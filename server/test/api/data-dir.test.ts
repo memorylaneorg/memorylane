@@ -14,6 +14,8 @@ describe("data directory move", () => {
     const thumb = thumbnailPathForMediaId(t.ctx.paths.thumbnailsDir, id);
     fs.mkdirSync(path.dirname(thumb), { recursive: true });
     fs.writeFileSync(thumb, "jpegbytes");
+    fs.mkdirSync(path.join(t.ctx.paths.dataDir, "tv-sharing-cache"));
+    fs.writeFileSync(path.join(t.ctx.paths.dataDir, "tv-sharing-cache", "cached.jpg"), "tvjpeg");
     const target = fs.mkdtempSync(path.join(os.tmpdir(), "memorylane-moved-"));
     const home = fs.mkdtempSync(path.join(os.tmpdir(), "memorylane-home-"));
     const prevEnv = { HOME: process.env.HOME, LOCALAPPDATA: process.env.LOCALAPPDATA, XDG_DATA_HOME: process.env.XDG_DATA_HOME };
@@ -36,6 +38,7 @@ describe("data directory move", () => {
       expect(moved.json().copiedBytes).toBeGreaterThan(0);
       expect(fs.existsSync(path.join(target, "memorylane.sqlite")) || fs.existsSync(path.join(target, "db.sqlite"))).toBe(true);
       expect(fs.readFileSync(path.join(target, "thumbnails", path.relative(t.ctx.paths.thumbnailsDir, thumb)), "utf8")).toBe("jpegbytes");
+      expect(fs.readFileSync(path.join(target, "tv-sharing-cache", "cached.jpg"), "utf8")).toBe("tvjpeg");
       // the copied database is a real, consistent SQLite file with our rows
       const Database = (await import("better-sqlite3")).default;
       const copy = new Database(path.join(target, path.basename(t.ctx.paths.dbPath)), { readonly: true });

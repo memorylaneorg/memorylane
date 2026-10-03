@@ -12,6 +12,7 @@ interface PluginModule {
     dataDir: string;
     logger: PluginLogger;
     plugin: { id: string; version: string };
+    callCore(method: string, payload: unknown): Promise<unknown>;
   }) => Promise<PluginModuleInstance> | PluginModuleInstance;
 }
 
@@ -21,8 +22,25 @@ interface PluginModuleInstance {
 }
 
 const loaded = new Map<string, PluginModuleInstance>();
+let nextCoreRequest = 1;
+const pendingCore = new Map<number, { resolve(value: unknown): void; reject(error: Error): void; timer: NodeJS.Timeout }>();
+function callCore(pluginId: string, method: string, payload: unknown): Promise<unknown> {
+  if (pendingCore.size >= 16) return Promise.reject(new Error("Core request limit reached"));
+  const coreRequestId = nextCoreRequest++;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { pendingCore.delete(coreRequestId); reject(new Error("Core request timed out")); }, 30_000);
+    pendingCore.set(coreRequestId, { resolve, reject, timer });
+    process.send?.({ type: "core-call", coreRequestId, pluginId, method, payload });
+  });
+}
 
 process.on("message", async (message: unknown) => {
+  const core = message as { type?: string; coreRequestId?: number; ok?: boolean; result?: unknown; error?: string };
+  if (core.type === "core-result" && core.coreRequestId) {
+    const pending = pendingCore.get(core.coreRequestId);
+    if (pending) { clearTimeout(pending.timer); pendingCore.delete(core.coreRequestId); if (core.ok) pending.resolve(core.result); else pending.reject(new Error(core.error)); }
+    return;
+  }
   const request = message as { requestId: number; type: string; pluginId?: string; version?: string; entry?: string; dataDir?: string; method?: string; payload?: unknown };
   const respond = (response: object) => process.send?.({ requestId: request.requestId, ...response });
   try {
@@ -41,7 +59,7 @@ process.on("message", async (message: unknown) => {
       // re-read every time; harmless for a real install too, since an
       // installed version's files never change after the fact anyway.
       const plugin = await import(`${pathToFileURL(request.entry).href}?t=${Date.now()}`) as PluginModule;
-      const instance = await plugin.activate?.({ pluginId, dataDir: request.dataDir, logger, plugin: { id: pluginId, version: request.version } }) ?? {};
+      const instance = await plugin.activate?.({ pluginId, dataDir: request.dataDir, logger, plugin: { id: pluginId, version: request.version }, callCore: (method, payload) => callCore(pluginId, method, payload) }) ?? {};
       loaded.set(pluginId, instance);
       return respond({ ok: true });
     }

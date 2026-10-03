@@ -94,6 +94,33 @@ in `server/src/server.ts`.
 | Apple Photos | Optional local macOS catalog integration: `server/src/plugins/apple-photos/` and `plugins/optional/com.memorylane.apple-photos/`; source visibility also lives in `server/src/plugins/registry.ts`. |
 | Settings/auth/update | `server/src/db/settings-repo.ts`, settings/auth/core-update routes, `server/src/auth/`, `client/src/pages/SettingsPage.tsx`, `server/src/plugin-platform/`, and tray updater. |
 
+### Optional TV photo sharing (development)
+
+- `plugins/optional/com.memorylane.tv-sharing/` implements generic UPnP AV photo
+  browsing, SSDP, eventing and JPEG delivery. It is a module plugin; protocol code
+  and the MIT XML parser load only with that optional plugin. Installation leaves
+  sharing disabled. Selected private IPv4 interface and folders are required.
+- `server/src/tv-sharing/` owns authenticated settings, catalog visibility and
+  derivatives. Module-host IPC binds requests to the plugin ID; core owns SQLite
+  and rechecks selection for every image, including cached images. LAN clients
+  are unauthenticated and restricted to the selected subnet; normal app login stays.
+- JPEG conversions use bounded child processes with deadlines and revocation,
+  existing RAW previews/BMP decoding, and `dataDir/tv-sharing-cache`. Data directory
+  migration copies that cache. Originals are read-only; generated JPEGs strip EXIF.
+- Plugin `module/catalog.mjs` adds an All photos collection inside each folder by
+  paging existing authorized core browse calls. Virtual photo IDs resolve only within
+  that collection; core rechecks delivery. Traversal/cache limits bound large trees.
+  No core recursive-query API or database schema change is needed.
+- `TvSharingSettings.tsx` is visible only for an active installed plugin. Settings
+  include folders/recursion, interface, 1080p/4K, cache budget and diagnostics.
+- The manifest's `developmentOnly` build flag excludes this plugin from production
+  catalogs until interoperability testing and minimum supported core version are
+  finalized. Development catalog scanning strips that build-only field.
+- See `docs/architecture/tv-sharing-plugin-spec.md` and
+  `docs/superpowers/plans/2026-10-03-tv-sharing.md`. LG is a test device, never an
+  implementation dependency. Real-TV validation and formal certification are not
+  implied by passing software tests.
+
 ### Photo viewer loading
 
 - `client/src/components/ProgressiveImage.tsx` shows the indexed thumbnail while
