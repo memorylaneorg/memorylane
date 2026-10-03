@@ -36,6 +36,26 @@ describe("location routes", () => {
     } finally { await t.close(); }
   });
 
+  it("supports selecting photos at street-level zoom and rejects excessive zoom", async () => {
+    const t = await createTestApp();
+    try {
+      const root = seedScanRoot(t.db), folder = seedFolder(t.db, root, "/library");
+      const id = seedMedia(t.db, folder, root);
+      t.db.prepare("UPDATE media SET gps_lat = 40, gps_lon = -74 WHERE id = ?").run(id);
+      const get = (url: string) => t.app.inject({ method: "GET", url, headers: { cookie: t.cookie } });
+      const bounds = "west=-74.001&east=-73.999&south=39.999&north=40.001";
+      const response = await get(`/api/locations/cells?${bounds}&zoom=17`);
+      expect(response.statusCode).toBe(200);
+      const cells = response.json();
+      expect(cells).toMatchObject({ total: 1, items: [{ count: 1 }] });
+      const items = await get(`/api/locations/cells/${cells.items[0].key}/items?${bounds}`);
+      expect(items.statusCode).toBe(200);
+      expect(items.json()).toMatchObject({ total: 1, items: [{ kind: "media", media: { id } }] });
+      expect((await get(`/api/locations/cells?${bounds}&zoom=18`)).statusCode).toBe(400);
+      expect((await get("/api/locations/cells/18:1:1/items")).statusCode).toBe(400);
+    } finally { await t.close(); }
+  });
+
   it("returns catalog-only Apple items while the plugin is enabled", async () => {
     const t = await createTestApp();
     try {

@@ -14,7 +14,7 @@ MemoryLane is local-first. It indexes folders in place, builds a disposable SQLi
 
 - Browse, search, favorite, and rediscover photos and videos from multiple folders.
 - Surface forgotten photos through Random Memory, This Day, Another Time, Surprise Me, and fast folder hover previews.
-- Explore geotagged photos on an offline map with year and source filters.
+- Explore geotagged photos on detailed online maps with year/source filters and an offline outline fallback.
 - Read camera, lens, focal-length, date, and other EXIF metadata with photographer-focused reports.
 - Browse major camera RAW formats, pair matching RAW+JPEG files as one photo, and play Apple Live Photos and video.
 - Group bursts into editable stacks and clean up originals through visible, reversible trash folders that keep RAW, Live Photo, and sidecar companions together.
@@ -79,6 +79,12 @@ The core includes metadata/RAW handling, thumbnails, and video tools because eve
 Read [Plugin architecture](docs/architecture/plugins.md), [AI architecture](docs/architecture/ai.md), and [Plugin repository deployment](docs/plugin-repository-deployment.md) for details.
 
 ## Privacy and network access
+
+The Locations view uses free OpenStreetMap tiles for detailed maps. Tile requests go
+directly from the browser to OpenStreetMap and reveal the viewed map area and IP
+address; photos remain local. Turn off **Detailed online map** to use only the bundled
+offline outline. The public tile service is best-effort and subject to its
+[tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
 
 MemoryLane binds to localhost by default. To allow access from other devices on the LAN, enable **Allow Access outside this computer** under **Settings → Network** and restart MemoryLane. `MEMORYLANE_BIND_ADDRESS` can still override the saved setting. The built-in HTTP server does not terminate TLS; use a trusted reverse proxy before exposing it outside a private network.
 
