@@ -770,3 +770,20 @@ export interface AssignFaceRequest {
 export interface RejectFaceRequest {
   personId: number;
 }
+
+export interface TvSharingSettingsDto {
+  enabled: boolean;
+  address: string;
+  port: number;
+  name: string;
+  folders: { id: number; recursive: boolean }[];
+  quality: "1080p" | "4k";
+  cacheMiB: number;
+}
+export interface TvSharingStatusDto {
+  diagnostics: { sharedPhotos: number; cacheBytes: number; conversionFailures: number };
+  installed: boolean;
+  settings: TvSharingSettingsDto;
+  interfaces: { name: string; address: string }[];
+  runtime: { sharing: boolean; error: string | null } | null;
+}

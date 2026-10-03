@@ -1,4 +1,6 @@
 import type {
+  TvSharingSettingsDto,
+  TvSharingStatusDto,
   UserDto,
   SetupRequest,
   LoginRequest,
@@ -114,6 +116,11 @@ export function toQueryString(params: Record<string, string | number | undefined
 }
 
 export const api = {
+  tvSharing: {
+    get: () => request<TvSharingStatusDto>("/api/tv-sharing"),
+    update: (settings: TvSharingSettingsDto) => request<{ settings: TvSharingSettingsDto; runtime: TvSharingStatusDto["runtime"] }>("/api/tv-sharing", { method: "PUT", body: JSON.stringify(settings) }),
+    folders: (parentId?: number) => request<{id:number;name:string;parentId:number|null;hasChildren:number}[]>(`/api/tv-sharing/folders${parentId == null ? "" : `?parentId=${parentId}`}`),
+  },
   locations: {
     summary: (filters: LocationFilters) => request<LocationSummaryDto>(`/api/locations/summary${toQueryString(filters)}`),
     cells: (filters: LocationFilters, bounds: LocationBounds, zoom: number) =>

@@ -13,13 +13,14 @@ on:
 jobs:
   verify-development-repository:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
             platform: win32-x64
-          - os: macos-13
+          - os: macos-15-intel
             platform: darwin-x64
-          - os: macos-14
+          - os: macos-15
             platform: darwin-arm64
     runs-on: ${{ matrix.os }}
     steps:
@@ -33,11 +34,10 @@ jobs:
           python-version: "3.12"
       - run: npm ci
       - run: npm run build --workspace=plugin-sdk
-      - run: npm run plugins:prepare-required
       - run: npm run plugins:prepare-ai-runtime
       - run: npm run plugins:prepare-apple-photos
       - run: node scripts/build-plugin-repository.mjs stable development ${{ matrix.platform }}
-      - run: npm run plugins:verify -- dist/plugin-repository/v1/stable
+      - run: npm run plugins:verify -- dist/plugin-repository/v1/stable/${{ matrix.platform }}
       - uses: actions/upload-artifact@v4
         with:
           name: development-plugin-repository-${{ matrix.platform }}
