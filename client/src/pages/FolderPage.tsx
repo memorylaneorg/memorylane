@@ -5,6 +5,7 @@ import type { FolderDto, FolderBreadcrumbDto, MediaDto, MediaTypeFilter as Media
 import { api } from "../api/client";
 import Breadcrumbs from "../components/Breadcrumbs";
 import FolderCard from "../components/FolderCard";
+import CollectionPicker from "../components/CollectionPicker";
 import MediaGrid from "../components/MediaGrid";
 import MediaTypeFilter from "../components/MediaTypeFilter";
 import Viewer from "../components/Viewer";
@@ -202,6 +203,7 @@ export default function FolderPage() {
                   <Layers size={14} strokeWidth={1.8} />
                   {t("coreBrowse.folder.stackSelected")}
                 </button>
+                <CollectionPicker key={`selection:${folderId}`} mediaIds={[...selectedIds].filter(id => media.some(m => m.id === id && m.mediaType !== "video"))} />
                 <button onClick={exitSelectMode} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">
                   {t("coreBrowse.folder.done")}
                 </button>
@@ -217,6 +219,7 @@ export default function FolderPage() {
               </button>
             )}
             {!selectMode && <>
+            <CollectionPicker key={`folder:${folderId}`} folderId={folderId} />
             <MediaTypeFilter value={mediaType} onChange={(t) => void changeMediaType(t)} />
             <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-muted">
               <input

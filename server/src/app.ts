@@ -24,6 +24,7 @@ import { registerPersonRoutes } from "./api/persons-routes.js";
 import { registerPluginRoutes } from "./plugins/plugin-routes.js";
 import { registerTvSharingRoutes } from "./tv-sharing/routes.js";
 import { registerCleanupRoutes } from "./api/cleanup-routes.js";
+import { registerCollectionRoutes } from "./api/collections-routes.js";
 import { registerTagRoutes } from "./api/tags-routes.js";
 import { registerLocationRoutes } from "./api/location-routes.js";
 import { registerCoreUpdateRoutes } from "./api/core-update-routes.js";
@@ -59,6 +60,7 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   await registerMediaRoutes(app, ctx);
   await registerCleanupRoutes(app, ctx);
   await registerTagRoutes(app, ctx);
+  await registerCollectionRoutes(app, ctx);
   await registerLocationRoutes(app, ctx);
   await registerSearchRoutes(app, ctx);
   await registerMemoriesRoutes(app, ctx);

@@ -65,3 +65,21 @@ test('a policy change during traversal still rejects the collection',async()=>{
  });
  await assert.rejects(adapter.browse(request('all:1')),/policy changed/);
 });
+
+test('exposes selected collections and Favorites as flat containers with scoped image aliases',async()=>{
+ let selected=true,member=true,name='Holidays';const images=[];
+ const adapter=createCatalogAdapter(async(method,args)=>{
+  if(method==='tv.config')return {enabled:true,apiVersion:2,updateId:1};
+  if(method==='tv.collections')return {items:selected?[{id:7,name},{id:'favorites',name:'Favorites'}]:[],updateId:1};
+  if(method==='tv.browse')return {items:[{id:'f:1',title:'Folder',kind:'container',parentId:'0'}],total:1,updateId:1};
+  if(method==='tv.collection')return {items:member?[{id:42,title:'Photo'}]:[],total:member?1:0,updateId:1};
+  if(method==='tv.image'){images.push(args);if(!selected||!member)throw Error('Not shared');return {bytes:'jpeg'};}
+ });
+ const root=await adapter.browse(request('0',0,1));assert.equal(root.total,3);assert.equal(root.items.length,1);
+ const all=await adapter.browse(request('0'));assert.ok(all.items.some(i=>i.id==='c:7'));assert.ok(all.items.some(i=>i.id==='c:favorites'));
+ const page=await adapter.browse(request('c:7'));assert.equal(page.items[0].id,'c:7:p:42');assert.equal(page.items[0].parentId,'c:7');
+ await adapter.image('c:7:p:42','display');assert.deepEqual(images[0],{id:'p:42',profile:'display',collectionId:7});
+ name='Trips';assert.equal((await adapter.browse({...request('c:7'),flag:'BrowseMetadata'})).items[0].title,'Trips');
+ member=false;await assert.rejects(adapter.image('c:7:p:42','display'));await assert.rejects(adapter.browse({...request('c:7:p:42'),flag:'BrowseMetadata'}));
+ selected=false;await assert.rejects(adapter.browse(request('c:7')));
+});

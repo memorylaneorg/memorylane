@@ -121,6 +121,28 @@ in `server/src/server.ts`.
   implementation dependency. Real-TV validation and formal certification are not
   implied by passing software tests.
 
+### Collections
+
+- `server/src/collections/collection-repo.ts` and migration `038_collections.sql`
+  store stable, never-reused collection IDs and explicit photo membership. These
+  collection-specific tags are independent of imported/AI tags. Favorites uses the
+  existing engagement flag. Original files are never moved or changed.
+- Authenticated `/api/collections` routes support creation, rename, deletion,
+  paginated photos and batch membership. Folder additions are atomic snapshots of
+  currently visible photos, optionally recursive; future scans do not add members.
+  Normal source, deletion-mark and companion visibility rules apply.
+- Library → Collections uses `CollectionsPage.tsx`; `CollectionPicker.tsx` adds folder
+  snapshots, selected photos, or a photo from Viewer → Info. Client batches explicit
+  selections in groups of 1000. Repeating additions/removals is safe.
+- TV settings explicitly select stable collection IDs or `favorites`. Core broker
+  API v2 provides selected names and authorized membership pages. The optional
+  plugin presents `c:<id>` and `c:<id>:p:<mediaId>` DLNA aliases. Delivery rechecks
+  the originating collection even if another share also grants the photo. Renaming
+  retains links; deleting a collection prunes its saved selection on settings load.
+- Collection sharing includes future explicit additions (and future favorite stars),
+  independently of folder shares. TV still excludes video, Apple Photos, unavailable
+  sources and marked photos. See `docs/architecture/collections.md`.
+
 ### Photo viewer loading
 
 - `client/src/components/ProgressiveImage.tsx` shows the indexed thumbnail while

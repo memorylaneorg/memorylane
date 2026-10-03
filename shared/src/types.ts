@@ -777,6 +777,7 @@ export interface TvSharingSettingsDto {
   port: number;
   name: string;
   folders: { id: number; recursive: boolean }[];
+  collections: CollectionId[];
   quality: "1080p" | "4k";
   cacheMiB: number;
 }
@@ -787,3 +788,6 @@ export interface TvSharingStatusDto {
   interfaces: { name: string; address: string }[];
   runtime: { sharing: boolean; error: string | null } | null;
 }
+
+export type CollectionId = number | "favorites";
+export interface CollectionDto { id: CollectionId; name: string; count: number; builtin: boolean }

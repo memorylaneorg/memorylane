@@ -61,8 +61,38 @@ export function createCatalogAdapter(callCore) {
         if (!item) throw Error('Not shared');
         return {item,original:`p:${match[2]}`};
     }
+    const collectionId = value => value === 'favorites' ? value : Number(value);
+    const collectionItem = item => ({id:`c:${item.id}`,parentId:'0',kind:'container',title:item.name});
+    async function selectedCollection(id) {
+        const result = await callCore('tv.collections',{});
+        const item = result.items.find(item=>item.id===id);
+        if (!item) throw Error('Not shared');
+        return {item:collectionItem(item),updateId:result.updateId};
+    }
     return {
         async browse(args) {
+            // Core supplies authorized membership; DLNA identities stay in this plugin.
+            const named = /^c:(favorites|[1-9]\d*)(?::p:([1-9]\d*))?$/.exec(args.objectId);
+            if (named) {
+                const id = collectionId(named[1]);
+                const selected = await selectedCollection(id);
+                if (named[2] && args.flag !== 'BrowseMetadata') throw Error('Not a folder');
+                if (!named[2] && args.flag === 'BrowseMetadata') return {items:[selected.item],total:1,updateId:selected.updateId};
+                const result = await callCore('tv.collection',{collectionId:id,start:named[2]?0:args.start,count:named[2]?1:args.count,sort:args.sort,...(named[2]?{mediaId:Number(named[2])}:{})});
+                if (named[2] && !result.items.length) throw Error('Not shared');
+                return {...result,items:result.items.map(item=>({id:`c:${id}:p:${item.id}`,parentId:`c:${id}`,kind:'photo',title:item.title}))};
+            }
+            if (args.objectId === '0' && args.flag === 'BrowseDirectChildren') {
+                const configuration = await callCore('tv.config',{});
+                if (configuration.apiVersion >= 2) {
+                    // Folder and collection selections are each bounded to 100 by core.
+                    const folders = await callCore('tv.browse',{...args,start:0,count:100});
+                    const collections = await callCore('tv.collections',{});
+                    const items = [...folders.items,...collections.items.map(collectionItem)].sort((a,b)=>collator.compare(a.title,b.title)||a.id.localeCompare(b.id));
+                    if (args.sort === '-dc:title') items.reverse();
+                    return {items:items.slice(args.start,args.start+args.count),total:items.length,updateId:collections.updateId};
+                }
+            }
             const virtual = /^all:(\d+)$/.exec(args.objectId);
             if (virtual) {
                 const items = await photos(virtual[1]);
@@ -85,6 +115,8 @@ export function createCatalogAdapter(callCore) {
             return {...result,total:result.total+1,items:first?[collection(folder[1]),...result.items.slice(0,args.count-1)]:result.items};
         },
         async image(id,profile) {
+            const named = /^c:(favorites|[1-9]\d*):p:([1-9]\d*)$/.exec(id);
+            if (named) return callCore('tv.image',{id:`p:${named[2]}`,profile,collectionId:collectionId(named[1])});
             const original = id.startsWith('all:') ? (await alias(id)).original : id;
             return callCore('tv.image',{id:original,profile});
         }
