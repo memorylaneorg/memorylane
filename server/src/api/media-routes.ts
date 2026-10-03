@@ -142,14 +142,14 @@ export async function registerMediaRoutes(app: FastifyInstance, ctx: AppContext)
   app.get("/api/media/:id/preview-status", { preHandler: app.requireAuth }, async (request, reply) => {
     const media = resolveVerifiedMedia(ctx, Number((request.params as {id:string}).id));
     if (!media) return reply.code(404).send({error:"Media not found"});
-    ctx.previewUpgrades?.enqueue(media, false, 10);
     const current = db.prepare('SELECT thumbnail_version FROM media WHERE id=?').get(media.id) as {thumbnail_version:number};
-    return { state: ctx.previewUpgrades?.status(media.id), version: current.thumbnail_version };
+    return { state: ctx.previewUpgrades?.isEligible(media.id) ? ctx.previewUpgrades.status(media.id) : null, version: current.thumbnail_version };
   });
   app.post("/api/media/:id/preview-retry", { preHandler: app.requireAuth }, async (request, reply) => {
     const media = resolveVerifiedMedia(ctx, Number((request.params as {id:string}).id));
     if (!media) return reply.code(404).send({error:"Media not found"});
-    ctx.previewUpgrades?.enqueue(media, true, 10);
+    if (!ctx.previewUpgrades?.isEligible(media.id)) return reply.code(403).send({error:"Preview upgrades are limited to DLNA-shared photos"});
+    ctx.previewUpgrades.enqueue(media, true, 5);
     return {ok:true};
   });
 
@@ -161,7 +161,6 @@ export async function registerMediaRoutes(app: FastifyInstance, ctx: AppContext)
     const media = resolveVerifiedMedia(ctx, id, true);
     if (!media) return reply.code(404).send({ error: "Media not found" });
 
-    ctx.previewUpgrades?.enqueue(media, false, 10);
     const previewPath = previewPathForMediaId(paths.previewsDir, id);
     if (media.thumbnail_status !== "done" || !fs.existsSync(previewPath)) {
       return reply.code(404).send({ error: "Preview not available" });

@@ -12,7 +12,7 @@ const privateIP = (ip: string) => { if (isIP(ip) !== 4)
     return false; const [a, b] = ip.split('.').map(Number); return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168); };
 const folder = z.object({ id: z.number().int().positive(), recursive: z.boolean() }).strict();
 const collectionIdSchema = z.union([z.literal('favorites'), z.number().int().positive().max(Number.MAX_SAFE_INTEGER)]);
-export const TvSettingsSchema = z.object({ enabled: z.boolean().default(false), address: z.string().refine(ip => ip === '' || privateIP(ip)).default(''), port: z.number().int().min(1024).max(65535).default(4283), name: z.string().trim().min(1).max(80).default('MemoryLane'), folders: z.array(folder).max(100).default([]), collections: z.array(collectionIdSchema).max(100).default([]), quality: z.enum(['1080p', '4k']).default('4k'), cacheMiB: z.number().int().min(64).max(10240).default(2048) }).strict();
+export const TvSettingsSchema = z.object({ enabled: z.boolean().default(false), address: z.string().refine(ip => ip === '' || privateIP(ip)).default(''), port: z.number().int().min(1024).max(65535).default(4283), name: z.string().trim().min(1).max(80).default('MemoryLane'), folders: z.array(folder).max(100).default([]), collections: z.array(collectionIdSchema).max(100).default([]), quality: z.enum(['1080p', '4k']).default('4k'), upgradePreviews: z.boolean().default(false), cacheMiB: z.number().int().min(64).max(10240).default(2048) }).strict();
 export type TvSettings = z.infer<typeof TvSettingsSchema>;
 const browseSchema = z.object({ objectId: z.string().max(256), flag: z.enum(['BrowseMetadata', 'BrowseDirectChildren']), start: z.number().int().min(0).max(0xffffffff), count: z.number().int().min(1).max(100), sort: z.enum(['+dc:title', '-dc:title']).default('+dc:title') }).strict();
 const eligible = "EXISTS (SELECT 1 FROM scan_roots sr JOIN folders f ON f.scan_root_id=sr.id WHERE sr.id=media.scan_root_id AND f.id=media.parent_folder_id AND sr.enabled=1 AND sr.kind='folder' AND f.status='active') AND " + EXCLUDE_PAIRED_RAW + " AND media.status='active' AND media.media_type IN ('image','raw') AND media.thumbnail_status='done' AND (media.source_kind IS NULL OR media.source_kind!='apple-photos') AND media.id NOT IN (SELECT media_id FROM deletion_marks)";
@@ -51,7 +51,7 @@ export class TvSharingBroker {
         return { previews: this.upgrades?.summary(), sharedPhotos, cacheBytes: await this.images.usage(), conversionFailures: this.images.failures };
     }
     preparePreviews() {
-        if (!this.pluginEnabled() || !this.settings().enabled || !this.upgrades) return;
+        if (!this.pluginEnabled() || !this.settings().enabled || !this.settings().upgradePreviews || !this.upgrades) return;
         const s = this.scope(), selection = this.selection();
         const pending = "AND media.media_type='raw' AND NOT EXISTS (SELECT 1 FROM preview_upgrades j WHERE j.media_id=media.id AND j.fingerprint=json_array(media.absolute_path,media.file_size,media.fs_modified_at,media.orientation,1))";
         // Explicit shared collections precede bulk folder preparation.

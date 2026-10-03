@@ -19,6 +19,9 @@ export function previewTarget(width: number, height: number, orientation: number
 const fingerprint = (m: MediaRow) => JSON.stringify([m.absolute_path, m.file_size, m.fs_modified_at, m.orientation, 1]);
 export class PreviewUpgrades {
   private stopped = false;
+  private eligible: (id: number) => boolean = () => true;
+  setEligibility(check: (id: number) => boolean) { this.eligible = check; }
+  isEligible(id: number) { return this.eligible(id); }
   private child: ChildProcess | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private work: Promise<void> | null = null;
@@ -27,7 +30,7 @@ export class PreviewUpgrades {
     this.schedule();
   }
   enqueue(media: MediaRow, retry = false, priority = 0) {
-    if (this.stopped || media.media_type !== 'raw' || media.status !== 'active') return;
+    if (this.stopped || !this.eligible(media.id) || media.media_type !== 'raw' || media.status !== 'active') return;
     const old = this.db.prepare('SELECT fingerprint,state FROM preview_upgrades WHERE media_id=?').get(media.id) as {fingerprint:string;state:string}|undefined;
     if (old?.fingerprint === fingerprint(media) && !(retry && ['failed','limited'].includes(old.state))) {
       if (priority) this.db.prepare("UPDATE preview_upgrades SET priority=MAX(priority,?) WHERE media_id=? AND state='queued'").run(priority,media.id);
@@ -63,6 +66,10 @@ export class PreviewUpgrades {
   private async next() {
     const media = this.db.prepare("SELECT media.* FROM preview_upgrades j JOIN media ON media.id=j.media_id JOIN scan_roots r ON r.id=media.scan_root_id WHERE j.state='queued' AND media.status='active' AND r.enabled=1 ORDER BY j.priority DESC,j.updated_at,media.id LIMIT 1").get() as MediaRow | undefined;
     if (!media) return;
+    if (!this.eligible(media.id)) {
+      this.db.prepare('DELETE FROM preview_upgrades WHERE media_id=?').run(media.id);
+      return;
+    }
     const stamp = fingerprint(media);
     const dest = previewPathForMediaId(this.paths.previewsDir, media.id);
     const temp = dest + '.upgrade.jpg';
@@ -78,6 +85,7 @@ export class PreviewUpgrades {
       if (old && (old.width ?? 0) >= target.width && (old.height ?? 0) >= target.height) { state = 'ready'; return; }
       state = await (this.renderer ?? this.convert.bind(this))({source:media.absolute_path,destination:temp,orientation:media.orientation,...target});
       if (this.stopped) return;
+      if (!this.eligible(media.id)) { this.db.prepare('DELETE FROM preview_upgrades WHERE media_id=?').run(media.id); return; }
       const current = this.db.prepare("SELECT * FROM media WHERE id=? AND status='active'").get(media.id) as MediaRow|undefined;
       if (!current || fingerprint(current) !== stamp) { state = 'queued'; return; }
       if (current.thumbnail_version !== media.thumbnail_version) { state = 'queued'; return; }

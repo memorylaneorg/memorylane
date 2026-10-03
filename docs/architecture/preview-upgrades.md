@@ -4,9 +4,12 @@ RAW previews retain the native dimensions of the largest valid embedded image,
 selected by pixel area across ExifTool tags. Grid thumbnails remain 500 pixels.
 Previously generated previews remain usable while upgrades run.
 
-A persistent SQLite queue prepares shared RAW photos and recently viewed RAWs.
-Explicit shared collections precede folder batches; viewed photos have higher
-priority. One low-priority worker runs at a time, with a 60-second deadline and
+The TV plugin setting `upgradePreviews` (off by default) opts into a persistent
+SQLite queue that prepares only DLNA-shared RAW photos. Turning it off prevents
+new work and discards queued work at dispatch; running output is not applied.
+Explicit shared collections precede folder batches; photos requested by the TV have
+higher priority. Opening the web viewer or polling status does not enqueue work.
+Retry and worker dispatch/replacement recheck current DLNA sharing eligibility. One low-priority worker runs at a time, with a 60-second deadline and
 at most 1,000 pending jobs. Source fingerprints and thumbnail revisions guard
 replacement. Jobs interrupted by shutdown resume on the next start. Disabled-root
 and missing-source queued jobs are removed when admitting new work.

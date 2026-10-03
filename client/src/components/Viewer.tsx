@@ -83,7 +83,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
         const result = await api.media.previewStatus(current.id);
         if (!active) return;
         setPreviewState(result.state); setPreviewVersion(result.version);
-        if (result.state === 'queued' || result.state === 'running' || !result.state) timer = setTimeout(() => void poll(), 2000);
+        if (result.state === 'queued' || result.state === 'running') timer = setTimeout(() => void poll(), 2000);
       } catch { if (active) timer = setTimeout(() => void poll(), 5000); }
     };
     void poll();

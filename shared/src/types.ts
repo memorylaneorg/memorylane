@@ -837,6 +837,7 @@ export interface TvSharingSettingsDto {
   collections: CollectionId[];
   quality: "1080p" | "4k";
   cacheMiB: number;
+  upgradePreviews: boolean;
 }
 export interface TvSharingStatusDto {
   diagnostics: { sharedPhotos: number; cacheBytes: number; conversionFailures: number; previews?: {queued:number;running:number;ready:number;limited:number;failed:number} };

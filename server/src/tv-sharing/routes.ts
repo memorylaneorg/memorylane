@@ -5,6 +5,7 @@ import { TV_PLUGIN_ID, TvSettingsSchema, TvSharingBroker } from './broker.js';
 export async function registerTvSharingRoutes(app: FastifyInstance, ctx: AppContext) {
     const manager = ctx.pluginManager;
     const broker = new TvSharingBroker(ctx.db, ctx.paths, () => !!manager?.isEnabled(TV_PLUGIN_ID), ctx.previewUpgrades);
+    ctx.previewUpgrades?.setEligibility(id => broker.settings().upgradePreviews && !!broker.allowedMedia(id));
     manager?.moduleHost?.setCoreHandler?.((id, method, payload) => broker.call(id, method, payload));
     const prepareTimer = setInterval(() => broker.preparePreviews(), 30000);
     prepareTimer.unref();
