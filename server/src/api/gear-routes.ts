@@ -42,6 +42,7 @@ async function museumLookup(kind: "camera" | "lens", labels: string[]): Promise<
   try {
     const res = await fetch(`${museumUrl()}/gear/v1/lookup`, {
       method: "POST",
+      signal: AbortSignal.timeout(5000),
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ items: labels.slice(0, 100).map((label) => ({ kind, label })) }),
     });
@@ -103,7 +104,7 @@ export async function registerGearRoutes(app: FastifyInstance, ctx: AppContext):
     // someone else took on a borrowed/shared device, not something the user
     // actually owned and used. Adjustable via ?minPhotos=, default 50.
     const minPhotosRaw = Number((request.query as { minPhotos?: string }).minPhotos);
-    const minPhotos = Number.isFinite(minPhotosRaw) && minPhotosRaw >= 0 ? minPhotosRaw : 50;
+    const minPhotos = Number.isFinite(minPhotosRaw) && minPhotosRaw >= 0 ? minPhotosRaw : settings.getAll().gearMinPhotos;
 
     const rows = db
       .prepare(
@@ -211,7 +212,7 @@ export async function registerGearRoutes(app: FastifyInstance, ctx: AppContext):
 
   app.get("/api/gear/lenses", { preHandler: app.requireAuth }, async (request, reply) => {
     const minPhotosRaw = Number((request.query as { minPhotos?: string }).minPhotos);
-    const minPhotos = Number.isFinite(minPhotosRaw) && minPhotosRaw >= 0 ? minPhotosRaw : 50;
+    const minPhotos = Number.isFinite(minPhotosRaw) && minPhotosRaw >= 0 ? minPhotosRaw : settings.getAll().gearMinPhotos;
     const rows = db.prepare(
       `SELECT mx.lens_id AS label, COUNT(*) AS photoCount,
               MIN(CASE WHEN ${dateBound} THEN mx.captured_at_precise END) AS firstPhoto,

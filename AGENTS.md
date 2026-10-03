@@ -142,9 +142,14 @@ Technical investigation pointers (not a separate backlog):
 - Faces: reproduce detection failures separately from split/merged identities. Review
   the face pipeline above, quality thresholds and confirmed-assignment preservation.
   An Immich-hosted model alone does not imply equivalent recognition behavior.
-- Gear: timeline years currently descend. Navigation and timeline headers both use
+- Gear: `gearMinPhotos` is a saved default (50; 0 disables filtering) under
+  Settings → Plugins → Gear Museum, shared by camera/lens listings. Museum and
+  Timeline allow per-visit overrides even with empty results. For the small local
+  validation library use 1. Timeline years currently descend. Navigation and timeline headers both use
   `z-20`; inspect their stacking contexts for the reported dropdown overlap. Lens
-  summaries and a camera/lens timeline toggle exist; the museum is camera-oriented.
+  summaries and camera/lens switches exist in both Museum and Timeline. Lens museum
+  cards open a photo detail panel and link to lens-filtered reports. Both views use
+  the saved gear threshold. Optional enrichment requests time out after five seconds.
 - Portability: one server can serve multiple browser devices. Shared SQLite writers,
   folder renames and original-root relocation require identity-preserving designs.
   `/api/scan-roots/:id/move` changes display order, not original file locations.
@@ -248,3 +253,7 @@ are stored in the ignored test-library folder.
   plus Spanish/French resources, locale-aware formatting, and parity checks.
 - Verify the user-requested Git identity before publishing. Do not change global
   identity or store credentials here.
+- Never credit AI tools or providers (including Claude, OpenAI, ChatGPT or Codex) as
+  developers, authors or co-authors in commits or PRs. Do not add AI `Co-authored-by`
+  trailers, bot authorship, or generated-by attribution. Use the user's configured
+  human Git identity and verify commit author/committer and PR text before publishing.

@@ -5,6 +5,7 @@ const DEFAULTS: SettingsDto = {
   archiveTitle: "MemoryLane",
   bindAddress: "127.0.0.1",
   museumServiceEnabled: false,
+  gearMinPhotos: 50,
   port: 4280,
   scanIntervalDays: null,
   scanScheduleEnabled: false,
@@ -36,6 +37,7 @@ export class SettingsRepo {
       museumServiceEnabled: map.has("museumServiceEnabled")
         ? map.get("museumServiceEnabled") === "true"
         : DEFAULTS.museumServiceEnabled,
+      gearMinPhotos: map.has("gearMinPhotos") ? Number(map.get("gearMinPhotos")) : DEFAULTS.gearMinPhotos,
       port: map.has("port") ? Number(map.get("port")) : DEFAULTS.port,
       scanIntervalDays: map.has("scanIntervalDays")
         ? map.get("scanIntervalDays") === "null"
@@ -71,6 +73,7 @@ export class SettingsRepo {
     if (patch.bindAddress !== undefined) entries.push(["bindAddress", patch.bindAddress]);
     if (patch.museumServiceEnabled !== undefined)
       entries.push(["museumServiceEnabled", String(patch.museumServiceEnabled)]);
+    if (patch.gearMinPhotos !== undefined) entries.push(["gearMinPhotos", String(patch.gearMinPhotos)]);
     if (patch.port !== undefined) entries.push(["port", String(patch.port)]);
     if (patch.scanIntervalDays !== undefined)
       entries.push(["scanIntervalDays", patch.scanIntervalDays === null ? "null" : String(patch.scanIntervalDays)]);
