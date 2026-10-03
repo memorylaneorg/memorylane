@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { CollectionDto, CollectionId, MediaDto } from '@memorylane/shared';
 import { api } from '../api/client';
 import MediaGrid from '../components/MediaGrid';
+import CollectionCard from '../components/CollectionCard';
 import Viewer from '../components/Viewer';
 import CollectionPhotoPicker from '../components/CollectionPhotoPicker';
 import CollectionPicker from '../components/CollectionPicker';
@@ -90,10 +91,7 @@ export default function CollectionsPage() {
    <input aria-label={t('collections.name')} placeholder={t('collections.name')} className={button} required maxLength={80} disabled={busy} value={name} onChange={e => setName(e.target.value)}/><button className={button} disabled={busy || !name.trim()}>{t('collections.new')}</button>
   </form>}
   {error && <p role="alert" className="text-red-600">{error}</p>}
-  {id === null ? <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">{collections.map(c => <button key={c.id} disabled={busy} className="group overflow-hidden rounded-xl bg-surface text-left ring-1 ring-border transition hover:-translate-y-0.5 hover:shadow-xl" onClick={() => setParams({ id: String(c.id) })}>
-    <div className="relative aspect-[4/3] bg-media"><div className="flex h-full items-center justify-center text-5xl opacity-40">{c.builtin ? '★' : '📁'}</div><div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent"/><div className="absolute inset-x-0 bottom-0 p-4 font-serif text-2xl font-semibold text-white">{label(c)}</div></div>
-    <div className="p-4 text-sm text-muted">{t('common.photos', { count: c.count })}</div>
-  </button>)}</div> : <nav aria-label={t('collections.title')}><button className="text-accent underline" onClick={() => setParams({})}>{t('collections.title')}</button><span> / {current ? label(current) : ''}</span></nav>}
+  {id === null ? <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">{collections.map(c => <CollectionCard key={c.id} collection={c} disabled={busy} onOpen={() => setParams({ id: String(c.id) })}/>) }</div> : <nav aria-label={t('collections.title')}><button className="text-accent underline" onClick={() => setParams({})}>{t('collections.title')}</button><span> / {current ? label(current) : ''}</span></nav>}
   {current && <section className="flex flex-col gap-4">
    <h2 className="font-serif text-2xl">{label(current)} <span className="font-sans text-sm text-muted">{t('common.photos', { count: total })}</span></h2>
    {!current.builtin && <button className={`${button} self-start`} disabled={busy} aria-expanded={pickerOpen} onClick={() => setPickerOpen(!pickerOpen)}>{t('collectionPicker.title')}</button>}

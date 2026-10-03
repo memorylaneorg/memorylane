@@ -136,6 +136,8 @@ in `server/src/server.ts`.
   to add individual photos immediately on click, with a separate explicit folder-snapshot
   action. Collections open as folder-style cards; the picker reuses FolderCard thumbnails.
   Successful additions persist when the picker closes; stack members are expanded.
+  `CollectionCard.tsx` uses a bounded six-photo membership page for covers and the
+  shared hover-preview rotation; empty collections retain their icon.
   `CollectionPicker.tsx` also adds folder
   snapshots, selected photos, or a photo from Viewer → Info. Client batches explicit
   selections in groups of 1000. Repeating additions/removals is safe.
