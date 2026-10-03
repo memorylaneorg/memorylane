@@ -182,7 +182,7 @@ export default function FolderPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
+      <div className="sticky top-16 z-10 bg-page">
         <Breadcrumbs items={breadcrumbs} />
         <div className={selectMode ? "flex flex-col items-stretch gap-4" : "flex flex-wrap items-center justify-between gap-4"}>
           <h1 className="min-w-0 break-words font-serif text-2xl font-semibold text-ink">{folder.name}</h1>

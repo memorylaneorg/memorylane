@@ -16,7 +16,7 @@ export function OriginalUnavailableNotice({
       role="status"
       className="absolute top-16 left-1/2 max-w-[90vw] -translate-x-1/2 rounded-lg bg-black/75 px-4 py-2 text-center text-sm text-white"
     >
-      <strong>{t("common.originalUnavailable")}</strong> — {t("common.cachedThumbnail")}
+      <strong>{t("common.originalUnavailable")}</strong>. {t("common.cachedThumbnail")}
     </div>
   );
 }

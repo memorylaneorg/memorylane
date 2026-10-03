@@ -36,6 +36,10 @@ import type {
   GearLensSummaryDto,
   GearLensTimelineDto,
   GearYearTotalDto,
+  TimelineSummaryDto,
+  MomentDetectionLevel,
+  MomentDetailDto,
+  MomentsSummaryDto,
   ExifFilterQuery,
   AnalysisStatusDto,
   StackDto,
@@ -247,6 +251,14 @@ export const api = {
     lenses: (camera: string) => request<GearLensSummaryDto[]>(`/api/gear/cameras/lenses?camera=${encodeURIComponent(camera)}`),
     lensTimeline: (minPhotos = 50) => request<GearLensTimelineDto[]>(`/api/gear/lenses?minPhotos=${minPhotos}`),
     yearTotals: () => request<GearYearTotalDto[]>("/api/gear/year-totals"),
+  },
+  timeline: {
+    summary: () => request<TimelineSummaryDto>("/api/timeline"),
+  },
+  moments: {
+    summary: (detection: MomentDetectionLevel) => request<MomentsSummaryDto>(`/api/moments?detection=${detection}`),
+    detail: (start: string, end: string, detection: MomentDetectionLevel) =>
+      request<MomentDetailDto>(`/api/moments/${start}/${end}?detection=${detection}`),
   },
   stacks: {
     get: (id: number) => request<StackDetailDto>(`/api/stacks/${id}`),

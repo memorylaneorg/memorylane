@@ -3,8 +3,8 @@ import type { PluginPlatformDto } from "@memorylane/shared";
 import { api, ApiError } from "../api/client";
 import { useConfirm } from "./ConfirmDialog";
 import { isPluginActive } from "../utils/plugins";
-import { CORE_UPDATE_REFRESH_EVENT } from "./CoreUpdateBanner";
 import PluginInstallProgress from "./PluginInstallProgress";
+import CheckForUpdatesButton from "./CheckForUpdatesButton";
 import { useTranslation } from "react-i18next";
 import TvSharingSettings from "./TvSharingSettings";
 
@@ -108,7 +108,7 @@ export default function PluginsSettings() {
     {item.id === "com.memorylane.tv-sharing" && isPluginActive(item) && <TvSharingSettings />}
   </section>;
   return <div className="space-y-6">
-    <div className="flex items-center justify-between gap-4"><p className="text-sm text-muted">{t("pluginUi.updateIntro")}</p><button type="button" className={buttonClass} disabled={busy} onClick={()=>{setBusy(true);void Promise.all([api.pluginPlatform.checkUpdates(),api.coreUpdate.check()]).then(()=>{window.dispatchEvent(new Event(CORE_UPDATE_REFRESH_EVENT));return refresh();}).catch(cause=>notice({title:t("pluginUi.updateFailed"),message:cause instanceof Error?cause.message:t("pluginUi.genericError")})).finally(()=>setBusy(false));}}>{t("pluginUi.checkUpdates")}</button></div>
+    <div className="flex items-center justify-between gap-4"><p className="text-sm text-muted">{t("pluginUi.updateIntro")}</p><CheckForUpdatesButton disabled={busy} onChecked={refresh} onCheckingChange={setBusy} /></div>
     <section className="space-y-3"><h2 className="font-serif text-lg font-semibold text-ink">{t("pluginUi.core")}</h2><div className="rounded-xl border border-border p-5"><h3 className="font-semibold text-ink">MemoryLane Core</h3><p className="text-sm text-muted">{t("pluginUi.builtInRunning", { version: coreVersion ?? "…" })}</p></div></section>
     <section className="space-y-3"><div><h2 className="font-serif text-lg font-semibold text-ink">{t("pluginUi.installed")}</h2><p className="text-sm text-muted">{t("pluginUi.installedHelp")}</p></div>{installedPlugins.map(renderPlugin)}</section>
     <section className="space-y-3">

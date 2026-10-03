@@ -86,6 +86,8 @@ in `server/src/server.ts`.
 | Metadata, RAW, thumbnails, video/Live Photos | `server/src/media/`, `server/src/exif/`, `server/src/capabilities/native-media-tools.ts`; `client/src/components/Viewer.tsx`. ExifTool, Sharp, FFmpeg/FFprobe are core dependencies. |
 | Search, facets, reports, favorites, rediscovery | Matching route files in `server/src/api/`; `server/src/query/media-query.ts` centralizes shared visibility predicates; pages under `client/src/pages/`. |
 | Locations | `client/src/pages/LocationsPage.tsx`, `client/src/utils/location-map.ts`, `client/src/assets/ne_110m_land.json`; `server/src/api/location-routes.ts`, `server/src/locations/`. OpenStreetMap tiles via `client/src/components/LocationBasemap.tsx`, offline SVG fallback, and viewport/zoom-dependent location cells (zoom 0–17). |
+| EXIF timeline | `client/src/pages/TimelinePage.tsx` and `TimelineMonthPage.tsx`; `server/src/api/timeline-routes.ts`. Uses only `media_exif.captured_at_precise`, accepts all media types, limits dates to 1990 through the current moment, skips empty months, and selects five chronologically distributed month samples. |
+| EXIF moments | `client/src/pages/MomentsPage.tsx`, `MomentDetailPage.tsx`, and `MomentDayPage.tsx`; `server/src/api/moments-routes.ts`; grouping rules in `server/src/moments/detect.ts`. Broad, Balanced, and Detailed presets detect active days and combine runs of at least three active days separated by no more than one inactive day. Dates are limited to 1990 through the current moment, and representative samples are distributed across each event. |
 | Gear Museum and Timeline | Both implemented in `client/src/pages/GearMuseumPage.tsx`; `GearTimelinePage.tsx` is a re-export. `server/src/api/gear-routes.ts` exposes camera/lens summaries and enrichment. |
 | Background analysis | `server/src/analysis/analysis-worker.ts`, `analysis-repo.ts`, `registry.ts`, and `analyzers/`. Track pending/done/error/unsupported outcomes and analyzer versions rather than equating scan completion with successful analysis. |
 | People | `server/src/analysis/analyzers/faces.ts`, `server/src/persons/face-repo.ts`, `person-service.ts`, `server/src/api/persons-routes.ts`; `client/src/pages/PeoplePage.tsx`, `PersonPage.tsx`. |
@@ -184,8 +186,8 @@ Technical investigation pointers (not a separate backlog):
 - Gear: `gearMinPhotos` is a saved default (50; 0 disables filtering) under
   Settings → Plugins → Gear Museum, shared by camera/lens listings. Museum and
   Timeline allow per-visit overrides even with empty results. For the small local
-  validation library use 1. Timeline years currently descend. Navigation and timeline headers both use
-  `z-20`; inspect their stacking contexts for the reported dropdown overlap. Lens
+  validation library use 1. Timeline years currently descend. The timeline header
+  uses `z-20`; the global navigation uses `z-40` so its dropdown remains above it. Lens
   summaries and camera/lens switches exist in both Museum and Timeline. Lens museum
   cards open a photo detail panel and link to lens-filtered reports. Both views use
   the saved gear threshold. Optional enrichment requests time out after five seconds.
@@ -222,6 +224,9 @@ Useful existing regression coverage:
 
 - Map: `client/src/utils/location-map.test.ts`, `server/test/locations/`,
   `server/test/api/location-routes.test.ts`.
+- EXIF timeline: `server/test/api/timeline-routes.test.ts`.
+- EXIF moments: `server/test/moments/detect.test.ts`,
+  `server/test/api/moments-routes.test.ts`.
 - People: `server/test/analysis/faces-analyzer.test.ts`, `server/test/persons/`,
   `server/test/api/persons-routes.test.ts`, `client/src/pages/PeoplePage.test.tsx`,
   runtime Python `tests/test_faces.py`, `tests/test_arcface.py`, `tests/test_contract.py`.

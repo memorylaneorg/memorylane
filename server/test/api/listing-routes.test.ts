@@ -32,7 +32,7 @@ describe("listing routes on the query builder", () => {
       const nested = seedMedia(t.db, sub, root, { filename: "nested.jpg" });
       const response = await get(t, `/api/folders/${top}/preview`);
       expect(response.statusCode).toBe(200);
-      expect(response.json().items.map((item: { id: number }) => item.id)).toEqual([direct, nested]);
+      expect(response.json().items.map((item: { id: number }) => item.id).sort()).toEqual([direct, nested].sort());
     } finally { await t.close(); }
   });
 
@@ -50,7 +50,24 @@ describe("listing routes on the query builder", () => {
 
       const response = await get(t, `/api/folders/${top}/preview`);
       expect(response.statusCode).toBe(200);
-      expect(response.json().items.map((item: { id: number }) => item.id)).toEqual([second, first]);
+      expect(response.json().items.map((item: { id: number }) => item.id).sort()).toEqual([second, first].sort());
+    } finally { await t.close(); }
+  });
+
+  it("spreads hover previews across descendant folders even when the parent has many photos", async () => {
+    const t = await createTestApp();
+    try {
+      const root = seedScanRoot(t.db);
+      const top = seedFolder(t.db, root, "/library");
+      const sub = seedFolder(t.db, root, "/library/sub", top);
+      for (let index = 0; index < 8; index += 1) seedMedia(t.db, top, root, { filename: `direct-${index}.jpg` });
+      const nested = seedMedia(t.db, sub, root, { filename: "nested.jpg" });
+
+      const response = await get(t, `/api/folders/${top}/preview`);
+      expect(response.statusCode).toBe(200);
+      const ids = response.json().items.map((item: { id: number }) => item.id);
+      expect(ids).toHaveLength(6);
+      expect(ids).toContain(nested);
     } finally { await t.close(); }
   });
 
