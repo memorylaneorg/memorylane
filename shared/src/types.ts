@@ -123,6 +123,7 @@ export interface UpdateScanRootRequest {
 export interface StorageStatsDto {
   thumbnailCacheBytes: number;
   previewsBytes: number;
+  tvCacheBytes: number;
   vectorsBytes: number;
   facesBytes: number;
   databaseBytes: number;
@@ -838,7 +839,7 @@ export interface TvSharingSettingsDto {
   cacheMiB: number;
 }
 export interface TvSharingStatusDto {
-  diagnostics: { sharedPhotos: number; cacheBytes: number; conversionFailures: number };
+  diagnostics: { sharedPhotos: number; cacheBytes: number; conversionFailures: number; previews?: {queued:number;running:number;ready:number;limited:number;failed:number} };
   installed: boolean;
   settings: TvSharingSettingsDto;
   interfaces: { name: string; address: string }[];

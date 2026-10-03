@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import { updateSettingsRequestSchema, moveDataDirRequestSchema, type StorageStatsDto, type VersionDto, type MoveDataDirResultDto } from "@memorylane/shared";
 import { moveDataDir, pendingMoveTarget, DataDirMoveError } from "../config/data-dir-move.js";
@@ -38,7 +39,7 @@ export async function registerSettingsRoutes(app: FastifyInstance, ctx: AppConte
   // cache, database, logs) - entirely separate from the source photo library.
   app.get("/api/settings/storage", { preHandler: app.requireAuth }, async (_request, reply) => {
     const { paths } = ctx;
-    const [thumbnailCacheBytes, previewsBytes, vectorsBytes, facesBytes, databaseBytes, walBytes, shmBytes, logsBytes] = await Promise.all([
+    const [thumbnailCacheBytes, previewsBytes, vectorsBytes, facesBytes, databaseBytes, walBytes, shmBytes, logsBytes, tvCacheBytes] = await Promise.all([
       getDirectorySize(paths.thumbnailsDir),
       getDirectorySize(paths.previewsDir),
       getDirectorySize(paths.vectorsDir),
@@ -47,17 +48,19 @@ export async function registerSettingsRoutes(app: FastifyInstance, ctx: AppConte
       getFileSize(`${paths.dbPath}-wal`),
       getFileSize(`${paths.dbPath}-shm`),
       getDirectorySize(paths.logsDir),
+      getDirectorySize(path.join(paths.dataDir, "tv-sharing-cache")),
     ]);
     const databaseTotal = databaseBytes + walBytes + shmBytes;
 
     const stats: StorageStatsDto = {
       thumbnailCacheBytes,
       previewsBytes,
+      tvCacheBytes,
       vectorsBytes,
       facesBytes,
       databaseBytes: databaseTotal,
       logsBytes,
-      totalBytes: thumbnailCacheBytes + previewsBytes + vectorsBytes + facesBytes + databaseTotal + logsBytes,
+      totalBytes: thumbnailCacheBytes + previewsBytes + vectorsBytes + facesBytes + databaseTotal + logsBytes + tvCacheBytes,
       dataDir: paths.dataDir,
       dataDirSource: paths.dataDirSource,
       pendingMoveTo: pendingMoveTarget(paths),

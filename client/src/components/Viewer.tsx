@@ -70,6 +70,25 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
   const awaitingMoreRef = useRef(false);
 
   const current = items[index];
+  const [previewState, setPreviewState] = useState<string | null>(null);
+  const [previewVersion, setPreviewVersion] = useState<number | null>(null);
+  const [previewRetry, setPreviewRetry] = useState(0);
+  useEffect(() => {
+    setPreviewState(null); setPreviewVersion(null);
+    if (current?.mediaType !== 'raw') return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const result = await api.media.previewStatus(current.id);
+        if (!active) return;
+        setPreviewState(result.state); setPreviewVersion(result.version);
+        if (result.state === 'queued' || result.state === 'running' || !result.state) timer = setTimeout(() => void poll(), 2000);
+      } catch { if (active) timer = setTimeout(() => void poll(), 5000); }
+    };
+    void poll();
+    return () => { active = false; clearTimeout(timer); };
+  }, [current?.id, previewRetry]);
   const handleImageReady = useCallback(() => {
     if (current) setLoadedMediaId(current.id);
   }, [current?.id]);
@@ -417,6 +436,10 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
           }} />
         )}
 
+        {current.mediaType === 'raw' && previewState && previewState !== 'ready' && <div role="status" className="absolute bottom-20 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-black/75 px-4 py-2 text-sm text-white">
+          {t(previewState === 'failed' ? 'previewUpgrade.failed' : previewState === 'limited' ? 'previewUpgrade.limited' : 'previewUpgrade.running')}
+          {(previewState === 'failed' || previewState === 'limited') && <button className="ml-3 underline" onClick={() => void api.media.retryPreview(current.id).then(() => setPreviewRetry(v => v + 1)).catch(() => setPreviewState('failed'))}>{t('common.retry')}</button>}
+        </div>}
         <OriginalUnavailableNotice fallback={fallback} sourceKind={current.sourceKind} />
 
         <button
@@ -462,7 +485,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
           ) : (
             <ProgressiveImage
               key={current.id}
-              src={displaySrc(current, false)}
+              src={displaySrc(previewVersion === null ? current : {...current, thumbnailVersion: previewVersion}, false)}
               thumbnailSrc={api.media.thumbnailUrl(current.id, current.thumbnailVersion)}
               alt={current.filename}
               draggable={false}

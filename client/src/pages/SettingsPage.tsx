@@ -787,6 +787,7 @@ export default function SettingsPage() {
             <ul className="flex flex-col gap-2">
               {[
                 [t("settingsStorage.previews"), storage.previewsBytes],
+                [t("previewUpgrade.tvCache"), storage.tvCacheBytes ?? 0],
                 [t("settingsStorage.thumbnails"), storage.thumbnailCacheBytes],
                 [t("settingsStorage.database"), storage.databaseBytes],
                 [t("settingsStorage.vectors"), storage.vectorsBytes],

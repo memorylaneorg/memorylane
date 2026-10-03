@@ -32,6 +32,13 @@ export default function TvSharingSettings() {
         setCollections(c);
     } }).catch(e => { if (active)
         setError(String(e)); }); return () => { active = false; }; }, []);
+    useEffect(() => {
+      let active = true;
+      const timer = setInterval(() => { void api.tvSharing.get().then(next => {
+        if (active) setStatus(old => old ? {...old, runtime:next.runtime, diagnostics:next.diagnostics} : next);
+      }).catch(() => {}); }, 3000);
+      return () => { active = false; clearInterval(timer); };
+    }, []);
     const dirty = !!settings && !!status && settingsKey(settings) !== settingsKey(status.settings);
     function change(patch: Partial<TvSharingSettingsDto>) { setSettings(s => s ? { ...s, ...patch } : s); setSaved(false); }
     async function save() { if (!settings || !dirty || busy)
@@ -69,6 +76,7 @@ export default function TvSharingSettings() {
  <p role="status" aria-live="polite" className={`text-sm ${dirty ? 'font-medium text-ink' : 'text-muted'}`}>{t(busy ? 'tvSharing.saving' : dirty ? 'tvSharing.unsaved' : saved ? 'tvSharing.saved' : 'tvSharing.noChanges')}</p>
  </div>
  <p className="text-sm">{t('tvSharing.diagnostics', { count: status.diagnostics.sharedPhotos, cache: (status.diagnostics.cacheBytes / 1048576).toFixed(1), failures: status.diagnostics.conversionFailures })}</p>
+ {status.diagnostics.previews && <p role="status" className="text-sm">{t('previewUpgrade.progress', {done:status.diagnostics.previews.ready + status.diagnostics.previews.limited + status.diagnostics.previews.failed, total:Object.values(status.diagnostics.previews).reduce((a,b)=>a+b,0)})} {t('previewUpgrade.results', status.diagnostics.previews)}</p>}
  <p className="text-sm">{t(status.runtime?.sharing ? 'tvSharing.running' : 'tvSharing.off')}</p>
  {status.runtime?.error && <p role="alert" className="text-sm text-amber-600">{status.runtime.error}</p>}
  </>}

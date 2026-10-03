@@ -1,0 +1,7 @@
+CREATE TABLE preview_upgrades (
+  media_id INTEGER PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,
+  fingerprint TEXT NOT NULL,
+  state TEXT NOT NULL,
+  priority INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

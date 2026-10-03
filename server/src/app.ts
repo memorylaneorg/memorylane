@@ -1,3 +1,4 @@
+import { PreviewUpgrades } from "./media/preview-upgrades.js";
 import fs from "node:fs";
 import Fastify, { type FastifyInstance, type FastifyError } from "fastify";
 import fastifyStatic from "@fastify/static";
@@ -49,6 +50,8 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
     reply.code(statusCode).send({ error: statusCode < 500 ? error.message : "Internal server error" });
   });
 
+  ctx.previewUpgrades = new PreviewUpgrades(ctx.db, ctx.paths);
+  app.addHook("onClose", async () => { await ctx.previewUpgrades?.close(); });
   await registerAuthPlugin(app, ctx);
 
   await registerAuthRoutes(app, ctx);
