@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMatch, useNavigate } from "react-router-dom";
 import { Pencil } from "lucide-react";
 import type { FolderDto, HomeSummaryDto, MediaDto, OnThisDayTier, ScanRootDto } from "@memorylane/shared";
 import { api } from "../api/client";
 import FolderCard from "../components/FolderCard";
 import { AppleBrowseCard } from "../components/AppleBrowseCard";
+import CollectionsPage from "./CollectionsPage";
 import InlineSlideshow from "../components/InlineSlideshow";
 import { formatBytes } from "../utils/format";
 import { formatMemoryBlurb } from "../utils/blurb";
@@ -15,6 +16,7 @@ type MemoryTab = "random" | "onThisDay";
 
 export default function HomePage() {
   const { t } = useTranslation();
+  const collectionsTab = useMatch("/collections") !== null;
   const [folders, setFolders] = useState<FolderDto[] | null>(null);
   const [appleLibraries, setAppleLibraries] = useState<{ root: ScanRootDto; count: number; coverMediaId: number | null; thumbnailVersion: number }[]>([]);
   const [appleRootIds, setAppleRootIds] = useState<number[]>([]);
@@ -249,6 +251,11 @@ export default function HomePage() {
 
       <section>
         <h2 className="mb-4 font-serif text-2xl font-semibold text-ink">{t("pages.yourLibrary")}</h2>
+        <div role="tablist" aria-label={t("pages.yourLibrary")} className="mb-5 flex gap-2">
+          {([false, true] as const).map(isCollections => <button key={String(isCollections)} type="button" role="tab" id={isCollections ? "library-collections-tab" : "library-folders-tab"} aria-selected={collectionsTab === isCollections} aria-controls="library-panel" tabIndex={collectionsTab === isCollections ? 0 : -1} onKeyDown={event => { if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) { event.preventDefault(); const next = event.key === "Home" ? false : event.key === "End" ? true : !collectionsTab; navigate(next ? "/collections" : "/"); document.getElementById(next ? "library-collections-tab" : "library-folders-tab")?.focus(); } }} onClick={() => navigate(isCollections ? "/collections" : "/")} className={`rounded-md border px-4 py-2 text-sm font-medium ${collectionsTab === isCollections ? "border-accent bg-accent/10 text-accent" : "border-border text-muted hover:bg-hover"}`}>{t(isCollections ? "collections.title" : "pages.folders")}</button>)}
+        </div>
+        <div id="library-panel" role="tabpanel" aria-labelledby={collectionsTab ? "library-collections-tab" : "library-folders-tab"}>
+        {collectionsTab ? <CollectionsPage /> : <>
         {folders === null && <p className="text-sm text-muted">{t("common.loading")}</p>}
         {folders && folders.length === 0 && appleLibraries.length === 0 && (
           <p className="text-sm text-muted">{t("coreBrowse.home.noFolders")}</p>
@@ -262,6 +269,8 @@ export default function HomePage() {
                 coverMediaId={coverMediaId} thumbnailVersion={thumbnailVersion} />)}
           </div>
         )}
+        </>}
+        </div>
       </section>
     </div>
   );

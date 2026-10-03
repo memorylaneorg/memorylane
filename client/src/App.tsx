@@ -20,7 +20,6 @@ import SimilarPage from "./pages/SimilarPage";
 import PeoplePage from "./pages/PeoplePage";
 import PersonPage from "./pages/PersonPage";
 import CleanupPage from "./pages/CleanupPage";
-import CollectionsPage from "./pages/CollectionsPage";
 import TagsPage from "./pages/TagsPage";
 import PluginWelcomePage from "./pages/PluginWelcomePage";
 import WelcomePage from "./pages/WelcomePage";
@@ -64,7 +63,7 @@ export default function App() {
         <Route path="/surprise" element={<SurprisePage />} />
         <Route path="/favorites" element={<FavoritesPage />} />
         <Route path="/cleanup" element={<CleanupPage />} />
-        <Route path="/collections" element={<CollectionsPage />} />
+        <Route path="/collections" element={<HomePage />} />
         <Route path="/tags" element={<TagsPage />} />
         <Route path="/locations" element={<Suspense fallback={<p className="text-sm text-muted">{t("pages.loadingMap")}</p>}><LocationsPage /></Suspense>} />
         <Route path="/reports" element={<ReportsPage />} />

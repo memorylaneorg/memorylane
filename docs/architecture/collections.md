@@ -21,3 +21,14 @@ New explicit members of a shared collection become shared; this is stated in set
 No new dependency or external service is required. Existing folder browsing and
 All photos shortcuts remain supported. UI strings are localized in English, Spanish
 and French. Work and validation use external storage; no production catalog reset.
+
+## Collection-first browsing
+
+Your Library has Folders and Collections tabs. The Collections tab offers creation
+and opens each collection with an Add photos picker. The picker browses existing
+folders and displays individual photo thumbnails (including expanded stack members).
+Selections persist across folder navigation until explicitly added or cleared.
+A separate Add all photos from this folder action takes an indexed snapshot, with
+an explicit optional Include subfolders checkbox. Merely opening a folder adds nothing.
+Both photo and child-folder pages can be loaded incrementally. Favorites remains
+managed using the existing star controls.

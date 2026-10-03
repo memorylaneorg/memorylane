@@ -131,7 +131,11 @@ in `server/src/server.ts`.
   paginated photos and batch membership. Folder additions are atomic snapshots of
   currently visible photos, optionally recursive; future scans do not add members.
   Normal source, deletion-mark and companion visibility rules apply.
-- Library → Collections uses `CollectionsPage.tsx`; `CollectionPicker.tsx` adds folder
+- Your Library → Folders / Collections tabs are in `HomePage.tsx`; `/collections`
+  opens the Collections tab. `CollectionsPage.tsx` embeds `CollectionPhotoPicker.tsx`
+  to select individual photos across folders, with a separate explicit folder-snapshot
+  action. Selection persists across folder navigation; stack members are expanded.
+  `CollectionPicker.tsx` also adds folder
   snapshots, selected photos, or a photo from Viewer → Info. Client batches explicit
   selections in groups of 1000. Repeating additions/removals is safe.
 - TV settings explicitly select stable collection IDs or `favorites`. Core broker
