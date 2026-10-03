@@ -16,6 +16,11 @@ import FavoritesPage from "./pages/FavoritesPage";
 import ReportsPage from "./pages/ReportsPage";
 import GearMuseumPage from "./pages/GearMuseumPage";
 import GearTimelinePage from "./pages/GearTimelinePage";
+import TimelinePage from "./pages/TimelinePage";
+import TimelineMonthPage from "./pages/TimelineMonthPage";
+import MomentsPage from "./pages/MomentsPage";
+import MomentDetailPage from "./pages/MomentDetailPage";
+import MomentDayPage from "./pages/MomentDayPage";
 import SimilarPage from "./pages/SimilarPage";
 import PeoplePage from "./pages/PeoplePage";
 import PersonPage from "./pages/PersonPage";
@@ -57,6 +62,11 @@ export default function App() {
       >
         <Route path="/" element={<HomePage />} />
         <Route path="/folder/:id" element={<FolderPage />} />
+        <Route path="/timeline" element={<TimelinePage />} />
+        <Route path="/timeline/:year/:month" element={<TimelineMonthPage />} />
+        <Route path="/moments" element={<MomentsPage />} />
+        <Route path="/moments/day/:date" element={<MomentDayPage />} />
+        <Route path="/moments/:start/:end" element={<MomentDetailPage />} />
         <Route path="/apple-photos/:id" element={<ApplePhotosPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/settings" element={<SettingsPage />} />

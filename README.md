@@ -92,4 +92,4 @@ MemoryLane binds to localhost by default. To allow access from other devices on 
 
 MemoryLane is MIT licensed. Bundled tools, libraries, optional models, and their separate terms are documented in [Third-party notices](THIRD_PARTY_NOTICES.md). The optional InsightFace model is restricted to non-commercial research use and is never downloaded unless selected.
 
-Original authors: Madhan Kanagavel and Anis Abdul.
+Authors: Madhan Kanagavel and Anis Abdul.

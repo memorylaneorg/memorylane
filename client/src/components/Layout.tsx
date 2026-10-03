@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, Camera, ChevronDown, FolderOpen, History, LibraryBig, LogOut, MapPinned, Search, Settings as SettingsIcon, Star, Tags, Trash2, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, CalendarDays, Camera, ChevronDown, FolderOpen, History, Images, LibraryBig, LogOut, MapPinned, Search, Settings as SettingsIcon, Star, Tags, Trash2, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { usePluginActive } from "../utils/plugins";
 import CoreUpdateBanner from "./CoreUpdateBanner";
@@ -11,6 +11,8 @@ import { useTranslation } from "react-i18next";
 // solid (bg-photo-shell), icon-only circular search button at the end.
 interface NavItem { to: string; labelKey: string; icon: LucideIcon; end?: boolean }
 const browseItem: NavItem = { to: "/", labelKey: "navigation.browse", icon: FolderOpen, end: true };
+const timelineItem: NavItem = { to: "/timeline", labelKey: "navigation.timeline", icon: CalendarDays };
+const momentsItem: NavItem = { to: "/moments", labelKey: "navigation.moments", icon: Images };
 const settingsItem: NavItem = { to: "/settings", labelKey: "navigation.settings", icon: SettingsIcon };
 const peopleItem: NavItem = { to: "/people", labelKey: "navigation.people", icon: Users };
 
@@ -64,14 +66,14 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-page text-ink">
-      <header className="sticky top-0 z-20 border-b border-border bg-nav-glass px-3 backdrop-blur-xl sm:px-5 lg:px-8">
+      <header className="sticky top-0 z-40 border-b border-border bg-nav-glass px-3 backdrop-blur-xl sm:px-5 lg:px-8">
         <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-2">
           <Link className="flex shrink-0 items-center gap-2 font-serif text-lg font-semibold tracking-[-0.03em] text-ink sm:text-2xl" to="/">
             <img src="/icon-32.png" alt="" className="size-6 shrink-0 sm:size-7" />
             <span>MemoryLane</span>
           </Link>
           <nav className="flex items-center gap-1 rounded-full border border-border bg-nav-pill p-1 text-[13px] font-medium text-nav-muted shadow-nav">
-            {[browseItem, { to: "/favorites", labelKey: "navigation.favorites", icon: Star } as NavItem, ...(peopleAvailable ? [peopleItem] : [])].map((item) => {
+            {[browseItem, timelineItem, momentsItem, { to: "/favorites", labelKey: "navigation.favorites", icon: Star } as NavItem, ...(peopleAvailable ? [peopleItem] : [])].map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink
@@ -87,7 +89,7 @@ export default function Layout() {
                   // else in this group falls back to the Library dropdown's
                   // own sm:hidden links below.
                   className={({ isActive }) =>
-                    `${item.to === "/" ? "flex" : "hidden sm:flex"} size-9 items-center justify-center gap-2 rounded-full transition sm:w-auto sm:justify-start sm:px-3.5 ${
+                    `${item.to === "/" || item.to === "/timeline" ? "flex" : "hidden sm:flex"} size-9 items-center justify-center gap-2 rounded-full transition sm:w-auto sm:justify-start sm:px-3.5 ${
                       isActive ? "bg-photo-shell text-white" : "hover:bg-hover-soft hover:text-ink"
                     }`
                   }

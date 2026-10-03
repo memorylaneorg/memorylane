@@ -1,18 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMatch, useNavigate } from "react-router-dom";
-import { Pencil } from "lucide-react";
-import type { FolderDto, HomeSummaryDto, MediaDto, OnThisDayTier, ScanRootDto } from "@memorylane/shared";
+import { CheckSquare, Layers, Pencil } from "lucide-react";
+import type { FolderDto, HomeSummaryDto, MediaDto, MediaTypeFilter as MediaTypeFilterValue, OnThisDayTier, ScanRootDto } from "@memorylane/shared";
 import { api } from "../api/client";
 import FolderCard from "../components/FolderCard";
 import { AppleBrowseCard } from "../components/AppleBrowseCard";
 import CollectionsPage from "./CollectionsPage";
 import InlineSlideshow from "../components/InlineSlideshow";
+import MediaGrid from "../components/MediaGrid";
+import MediaTypeFilter from "../components/MediaTypeFilter";
+import Viewer from "../components/Viewer";
+import { useConfirm } from "../components/ConfirmDialog";
+import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import { formatBytes } from "../utils/format";
 import { formatMemoryBlurb } from "../utils/blurb";
 import { displaySrc } from "../utils/mediaSrc";
+import { invertVisibleSelection } from "../utils/selection";
 import { useTranslation } from "react-i18next";
 
 type MemoryTab = "random" | "onThisDay";
+const PAGE_SIZE = 200;
 
 export default function HomePage() {
   const { t } = useTranslation();
@@ -25,6 +32,18 @@ export default function HomePage() {
   const [titleDraft, setTitleDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
+  const [showAllFiles, setShowAllFiles] = useState(false);
+  const [libraryMedia, setLibraryMedia] = useState<MediaDto[]>([]);
+  const [libraryMediaTotal, setLibraryMediaTotal] = useState(0);
+  const [mediaType, setMediaType] = useState<MediaTypeFilterValue>("all");
+  const [loadingLibraryMedia, setLoadingLibraryMedia] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [marking, setMarking] = useState(false);
+  const loadingMoreRef = useRef(false);
+  const { confirm } = useConfirm();
   const editTitle = () => {
     setTitleDraft(summary?.archiveTitle ?? "MemoryLane");
     setTitleError(null);
@@ -49,6 +68,109 @@ export default function HomePage() {
   const [tabTier, setTabTier] = useState<OnThisDayTier | null>(null);
   const [tabLoading, setTabLoading] = useState(false);
   const navigate = useNavigate();
+
+  const loadLibraryMedia = useCallback(async (type: MediaTypeFilterValue) => {
+    setLoadingLibraryMedia(true);
+    setLibraryError(null);
+    try {
+      const result = await api.media.list({ type }, 0, PAGE_SIZE);
+      setLibraryMedia(result.items);
+      setLibraryMediaTotal(result.total);
+    } catch (err) {
+      setLibraryError(err instanceof Error ? err.message : t("stacks.error"));
+    } finally {
+      setLoadingLibraryMedia(false);
+    }
+  }, [t]);
+
+  const toggleAllFiles = (checked: boolean) => {
+    setShowAllFiles(checked);
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setViewerIndex(null);
+    if (checked) void loadLibraryMedia(mediaType);
+  };
+
+  const changeMediaType = (type: MediaTypeFilterValue) => {
+    setMediaType(type);
+    setSelectedIds(new Set());
+    if (showAllFiles) void loadLibraryMedia(type);
+  };
+
+  const enterSelectMode = () => {
+    setSelectMode(true);
+    setSelectedIds(new Set());
+    if (!showAllFiles) {
+      setShowAllFiles(true);
+      void loadLibraryMedia(mediaType);
+    }
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setLibraryError(null);
+  };
+
+  const refreshLibraryMedia = useCallback(() => {
+    if (showAllFiles) void loadLibraryMedia(mediaType);
+  }, [loadLibraryMedia, mediaType, showAllFiles]);
+
+  const stackSelected = async () => {
+    setLibraryError(null);
+    try {
+      await api.stacks.create([...selectedIds]);
+      exitSelectMode();
+      refreshLibraryMedia();
+    } catch (err) {
+      setLibraryError(err instanceof Error ? err.message : t("coreBrowse.folder.stackFailed"));
+    }
+  };
+
+  const markSelected = async () => {
+    const ids = [...selectedIds].filter((id) => libraryMedia.some((item) => item.id === id));
+    if (ids.length === 0) return;
+    const ok = await confirm({
+      title: t("coreBrowse.folder.markTitle", { count: ids.length }),
+      message: t("coreBrowse.folder.markMessage"),
+      confirmLabel: t("coreBrowse.folder.mark"),
+      danger: true,
+    });
+    if (!ok) return;
+    setMarking(true);
+    setLibraryError(null);
+    try {
+      for (let i = 0; i < ids.length; i += 200) await api.cleanup.mark(ids.slice(i, i + 200));
+      exitSelectMode();
+      refreshLibraryMedia();
+    } catch (err) {
+      setLibraryError(err instanceof Error ? err.message : t("coreBrowse.folder.markFailed"));
+    } finally {
+      setMarking(false);
+    }
+  };
+
+  const toggleSelect = (media: MediaDto) => setSelectedIds((previous) => {
+    const next = new Set(previous);
+    if (next.has(media.id)) next.delete(media.id); else next.add(media.id);
+    return next;
+  });
+
+  const loadMoreLibraryMedia = useCallback(async () => {
+    if (loadingMoreRef.current || !showAllFiles) return;
+    loadingMoreRef.current = true;
+    setLoadingLibraryMedia(true);
+    try {
+      const result = await api.media.list({ type: mediaType }, libraryMedia.length, PAGE_SIZE);
+      setLibraryMedia((previous) => [...previous, ...result.items]);
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingLibraryMedia(false);
+    }
+  }, [libraryMedia.length, mediaType, showAllFiles]);
+
+  const hasMoreLibraryMedia = showAllFiles && libraryMedia.length < libraryMediaTotal;
+  const librarySentinelRef = useInfiniteScroll(loadMoreLibraryMedia, !collectionsTab && hasMoreLibraryMedia, loadingLibraryMedia);
 
   const loadTab = useCallback(async (tab: MemoryTab) => {
     setTabLoading(true);
@@ -184,19 +306,9 @@ export default function HomePage() {
           {heroBlurb && (
             <p className="absolute inset-x-0 bottom-4 text-center text-xs font-medium text-white/60">{heroBlurb}</p>
           )}
-        </div>
 
-        {heroMetadata.length > 0 && (
-          <div className="mt-5 flex flex-wrap gap-x-7 gap-y-2 px-1 text-[14px] leading-[1.7] text-muted">
-            {heroMetadata.map((label) => (
-              <span key={label}>{label}</span>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-6 px-1">
           <button
-            className="rounded-full bg-accent px-10 py-4 text-lg font-bold text-page shadow-hero transition-opacity hover:opacity-90"
+            className="absolute bottom-6 right-6 z-[1] rounded-full bg-accent px-6 py-3 text-base font-bold text-page shadow-hero transition-opacity hover:opacity-90 sm:bottom-8 sm:right-8 sm:px-10 sm:py-4 sm:text-lg"
             onClick={() => {
               // Requested synchronously inside the click handler - browsers only grant
               // fullscreen in direct response to a user gesture, and that gesture context
@@ -208,6 +320,15 @@ export default function HomePage() {
             {t("pages.surprise")}
           </button>
         </div>
+
+        {heroMetadata.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-x-7 gap-y-2 px-1 text-[14px] leading-[1.7] text-muted">
+            {heroMetadata.map((label) => (
+              <span key={label}>{label}</span>
+            ))}
+          </div>
+        )}
+
       </section>
 
       {/* Small tabbed rediscovery widgets - surface photos from anywhere in
@@ -256,11 +377,44 @@ export default function HomePage() {
         </div>
         <div id="library-panel" role="tabpanel" aria-labelledby={collectionsTab ? "library-collections-tab" : "library-folders-tab"}>
         {collectionsTab ? <CollectionsPage /> : <>
-        {folders === null && <p className="text-sm text-muted">{t("common.loading")}</p>}
-        {folders && folders.length === 0 && appleLibraries.length === 0 && (
+        <div className="sticky top-16 z-10 mb-4 bg-page">
+          <div className={selectMode ? "flex flex-col items-stretch gap-4" : "flex flex-wrap items-center justify-between gap-4"}>
+            <div className={selectMode ? "flex w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-3" : "flex flex-wrap items-center justify-end gap-3"}>
+              {selectMode ? (
+                <div className="flex flex-1 flex-wrap items-center gap-2 text-sm">
+                  <span className="mr-1 whitespace-nowrap font-medium text-ink"><span className="mr-1 inline-flex min-w-7 justify-center rounded-full bg-accent px-2 py-0.5 text-page">{selectedIds.size}</span> {t("coreBrowse.folder.selected")}</span>
+                  <button onClick={() => setSelectedIds(new Set(libraryMedia.map((media) => media.id)))} title={t("coreBrowse.folder.selectShownTitle", { count: libraryMedia.length })} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">{t("coreBrowse.folder.allShown")}</button>
+                  <button onClick={() => setSelectedIds(new Set())} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">{t("coreBrowse.folder.clear")}</button>
+                  <button onClick={() => setSelectedIds(invertVisibleSelection(libraryMedia.map((media) => media.id), selectedIds))} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">{t("coreBrowse.folder.invert")}</button>
+                  <button onClick={() => void markSelected()} disabled={selectedIds.size === 0 || marking} className="whitespace-nowrap rounded-md border border-red-500/30 px-3 py-1.5 text-red-600 hover:bg-red-500/10 disabled:opacity-40">{marking ? t("coreBrowse.folder.marking") : t("coreBrowse.folder.mark")}</button>
+                  <button onClick={() => void stackSelected()} disabled={selectedIds.size < 2} className="flex items-center gap-1.5 whitespace-nowrap rounded-md bg-accent px-3 py-1.5 text-page hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40">
+                    <Layers size={14} strokeWidth={1.8} />
+                    {t("coreBrowse.folder.stackSelected")}
+                  </button>
+                  <button onClick={exitSelectMode} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">{t("coreBrowse.folder.done")}</button>
+                </div>
+              ) : (
+                <button onClick={enterSelectMode} title={t("coreBrowse.folder.selectHelp")} className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-ink hover:bg-hover">
+                  <CheckSquare size={14} strokeWidth={1.8} />
+                  {t("coreBrowse.folder.select")}
+                </button>
+              )}
+              {!selectMode && <>
+                <MediaTypeFilter value={mediaType} onChange={changeMediaType} />
+                <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-muted">
+                  <input type="checkbox" checked={showAllFiles} onChange={(event) => toggleAllFiles(event.target.checked)} className="cursor-pointer accent-accent" />
+                  {t("coreBrowse.folder.allFiles")}
+                </label>
+              </>}
+            </div>
+          </div>
+        </div>
+
+        {!showAllFiles && folders === null && <p className="text-sm text-muted">{t("common.loading")}</p>}
+        {!showAllFiles && folders && folders.length === 0 && appleLibraries.length === 0 && (
           <p className="text-sm text-muted">{t("coreBrowse.home.noFolders")}</p>
         )}
-        {folders && (folders.length > 0 || appleLibraries.length > 0) && (
+        {!showAllFiles && folders && (folders.length > 0 || appleLibraries.length > 0) && (
           <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
             {folders.filter((f) => !appleRootIds.includes(f.scanRootId)).map((f) => <FolderCard key={f.id} folder={f} />)}
             {appleLibraries.map(({ root, count, coverMediaId, thumbnailVersion }) =>
@@ -268,6 +422,27 @@ export default function HomePage() {
                 previewRootId={root.id} subtitle={root.path.split(/[\\/]/).filter(Boolean).pop()} count={count}
                 coverMediaId={coverMediaId} thumbnailVersion={thumbnailVersion} />)}
           </div>
+        )}
+
+        {showAllFiles && libraryError && <p role="alert" className="mb-4 text-sm text-red-600">{libraryError}</p>}
+        {showAllFiles && libraryMedia.length > 0 && (
+          <MediaGrid items={libraryMedia} onOpen={setViewerIndex} selectable={selectMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
+        )}
+        {showAllFiles && !loadingLibraryMedia && libraryMedia.length === 0 && !libraryError && (
+          <p className="text-sm text-muted">
+            {mediaType === "all"
+              ? t("coreBrowse.folder.noFilesRecursive")
+              : t(mediaType === "photo" ? "coreBrowse.folder.noPhotosRecursive" : "coreBrowse.folder.noVideosRecursive")}
+          </p>
+        )}
+        {hasMoreLibraryMedia && (
+          <div ref={librarySentinelRef} className="flex min-h-[60px] items-center justify-center text-sm text-muted">
+            {loadingLibraryMedia && t("coreBrowse.folder.loadingMore", { current: libraryMedia.length, total: libraryMediaTotal })}
+          </div>
+        )}
+
+        {showAllFiles && viewerIndex !== null && (
+          <Viewer items={libraryMedia} startIndex={viewerIndex} onClose={() => setViewerIndex(null)} total={libraryMediaTotal} onRequestMore={loadMoreLibraryMedia} />
         )}
         </>}
         </div>

@@ -10,12 +10,14 @@ import AnalysisProgress from "../components/AnalysisProgress";
 import PluginsSettings from "../components/PluginsSettings";
 import ScanFoldersManager from "../components/ScanFoldersManager";
 import ApplePhotosSyncCard from "../components/ApplePhotosSyncCard";
+import CheckForUpdatesButton from "../components/CheckForUpdatesButton";
 import { useConfirm } from "../components/ConfirmDialog";
 import { useTranslation } from "react-i18next";
 import { languagePreference, setLanguage, type SupportedLanguage } from "../i18n";
 
 const SETTINGS_TABS = [
   { id: "folders", labelKey: "settings.folders" },
+  { id: "general", labelKey: "settings.general" },
   { id: "analysis", labelKey: "settings.analysis" },
   { id: "plugins", labelKey: "settings.plugins" },
   { id: "storage", labelKey: "settings.storage" },
@@ -166,7 +168,7 @@ export default function SettingsPage() {
       title: t("settingsUi.moveTitle"),
       message: (
         <>
-          {t("settingsUi.moveMessageBefore")} <code className="text-ink">{target}</code> {t("settingsUi.moveMessageAfter")}
+          {t("settingsUi.moveMessageBefore")} <code className="text-ink">{target}</code>{t("settingsUi.moveMessageAfter")}
         </>
       ),
       confirmLabel: t("settingsUi.copyData"),
@@ -361,6 +363,40 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <div role="tabpanel" id="settings-panel-general" aria-labelledby="settings-tab-general" hidden={activeTab !== "general"} tabIndex={0} className="space-y-8 focus-visible:outline-accent">
+        <section className="max-w-3xl space-y-2">
+          <h2 className="font-serif text-lg font-semibold text-ink">{t("navigation.gearMuseum")}</h2>
+          <label className="flex items-center gap-3 text-sm text-ink">
+            {t("gearSetting.label")}
+            <input type="number" min={0} max={1000000} step={1} defaultValue={settings.gearMinPhotos}
+              onBlur={(event) => {
+                const value = event.target.valueAsNumber;
+                if (Number.isInteger(value) && value >= 0 && value <= 1000000) {
+                  setGearSettingsError(null);
+                  void updateSchedule({ gearMinPhotos: value }).catch((error) => setGearSettingsError(String(error)));
+                } else event.target.value = String(settings.gearMinPhotos);
+              }} className="w-24 rounded-lg border border-border bg-surface px-2 py-1.5" />
+          </label>
+          <p className="text-sm text-muted">{t("gearSetting.help")}</p>
+          {gearSettingsError && <p role="alert" className="text-sm text-red-600">{gearSettingsError}</p>}
+        </section>
+
+        <section className="max-w-3xl space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-serif text-lg font-semibold text-ink">{t("settings.museumTitle")}</h2>
+            <span className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">{t("settings.comingSoon")}</span>
+          </div>
+          <p className="text-sm text-muted">{t("settings.museumIntro")}</p>
+          <label className="flex cursor-not-allowed items-start gap-3 rounded-lg border border-border bg-surface p-4 opacity-60">
+            <input type="checkbox" checked={false} disabled readOnly className="mt-1 size-4 accent-accent" />
+            <span>
+              <span className="block text-sm font-medium text-ink">{t("settings.museumEnable")}</span>
+              <span className="mt-1 block text-sm text-muted">{t("settings.museumHelp")}</span>
+            </span>
+          </label>
+        </section>
+      </div>
+
       <div role="tabpanel" id="settings-panel-folders" aria-labelledby="settings-tab-folders" hidden={activeTab !== "folders"} tabIndex={0} className="space-y-8 focus-visible:outline-accent">
       <section>
         <h2 className="mb-3 font-serif text-lg font-semibold text-ink">{t("settings.scanFolders")}</h2>
@@ -422,31 +458,38 @@ export default function SettingsPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 font-serif text-lg font-semibold text-ink">{t("settings.ignoredFolders")}</h2>
-        <p className="mb-3 text-sm text-muted">
-          {t("settingsUi.ignoredHelp")}
-        </p>
-        <ul className="flex flex-col gap-2">
-          {ignoredPaths.map((p) => (
-            <li
-              key={p.id}
-              className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface px-3.5 py-2.5"
-            >
-              <span className="min-w-0 truncate text-ink" title={p.path}>
-                {p.path}
-              </span>
-              <button
-                onClick={() => removeIgnoredPath(p.id)}
-                aria-label={t("settings.removeIgnored")}
-                title={t("settings.removeIgnored")}
-                className="grid size-6 shrink-0 place-items-center rounded text-muted hover:bg-hover hover:text-ink"
-              >
-                <X size={14} strokeWidth={2} />
-              </button>
-            </li>
-          ))}
-          {ignoredPaths.length === 0 && <li className="text-sm text-muted">{t("settingsUi.noIgnored")}</li>}
-        </ul>
+        <details className="rounded-lg border border-border bg-surface">
+          <summary className="cursor-pointer select-none px-4 py-3 text-ink hover:bg-hover">
+            <span className="ml-1 font-serif text-lg font-semibold">{t("settings.ignoredFolders")}</span>
+            <span className="ml-2 text-sm font-normal text-muted">({ignoredPaths.length.toLocaleString()})</span>
+          </summary>
+          <div className="border-t border-border px-4 py-4">
+            <p className="mb-3 text-sm text-muted">
+              {t("settingsUi.ignoredHelp")}
+            </p>
+            <ul className="flex flex-col gap-2">
+              {ignoredPaths.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex items-center justify-between gap-4 rounded-lg border border-border bg-page px-3.5 py-2.5"
+                >
+                  <span className="min-w-0 truncate text-ink" title={p.path}>
+                    {p.path}
+                  </span>
+                  <button
+                    onClick={() => removeIgnoredPath(p.id)}
+                    aria-label={t("settings.removeIgnored")}
+                    title={t("settings.removeIgnored")}
+                    className="grid size-6 shrink-0 place-items-center rounded text-muted hover:bg-hover hover:text-ink"
+                  >
+                    <X size={14} strokeWidth={2} />
+                  </button>
+                </li>
+              ))}
+              {ignoredPaths.length === 0 && <li className="text-sm text-muted">{t("settingsUi.noIgnored")}</li>}
+            </ul>
+          </div>
+        </details>
       </section>
 
       </div>
@@ -710,40 +753,6 @@ export default function SettingsPage() {
       </div>
 
       <div role="tabpanel" id="settings-panel-plugins" aria-labelledby="settings-tab-plugins" hidden={activeTab !== "plugins"} tabIndex={0} className="space-y-8 focus-visible:outline-accent">
-        <section className="max-w-3xl space-y-3">
-          <div>
-            <h2 className="font-serif text-lg font-semibold text-ink">{t("settings.museumTitle")}</h2>
-            <p className="mt-1 text-sm text-muted">{t("settings.museumIntro")}</p>
-          </div>
-          <label className="flex items-start gap-3 rounded-lg border border-border bg-surface p-4">
-            <input
-              type="checkbox"
-              checked={settings.museumServiceEnabled}
-              onChange={(event) => void updateSchedule({ museumServiceEnabled: event.target.checked })}
-              className="mt-1 size-4 accent-accent"
-            />
-            <span>
-              <span className="block text-sm font-medium text-ink">{t("settings.museumEnable")}</span>
-              <span className="mt-1 block text-sm text-muted">{t("settings.museumHelp")}</span>
-            </span>
-          </label>
-        </section>
-        <section className="max-w-3xl space-y-2">
-          <h2 className="font-serif text-lg font-semibold text-ink">{t("navigation.gearMuseum")}</h2>
-          <label className="flex items-center gap-3 text-sm text-ink">
-            {t("gearSetting.label")}
-            <input type="number" min={0} max={1000000} step={1} defaultValue={settings.gearMinPhotos}
-              onBlur={(event) => {
-                const value = event.target.valueAsNumber;
-                if (Number.isInteger(value) && value >= 0 && value <= 1000000) {
-                  setGearSettingsError(null);
-                  void updateSchedule({ gearMinPhotos: value }).catch((error) => setGearSettingsError(String(error)));
-                } else event.target.value = String(settings.gearMinPhotos);
-              }} className="w-24 rounded-lg border border-border bg-surface px-2 py-1.5" />
-          </label>
-          <p className="text-sm text-muted">{t("gearSetting.help")}</p>
-          {gearSettingsError && <p role="alert" className="text-sm text-red-600">{gearSettingsError}</p>}
-        </section>
         {activeTab === "plugins" && <PluginsSettings />}
       </div>
 
@@ -859,11 +868,20 @@ export default function SettingsPage() {
       <div role="tabpanel" id="settings-panel-about" aria-labelledby="settings-tab-about" hidden={activeTab !== "about"} tabIndex={0} className="space-y-8 focus-visible:outline-accent">
         <section className="max-w-3xl space-y-6">
           <div>
-            <h2 className="flex items-center gap-3 font-serif text-2xl font-semibold text-ink">
-              <img src="/icon-32.png" alt="" className="size-8 shrink-0" />
-              <span>MemoryLane{version ? ` v${version}` : ""}</span>
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="flex items-center gap-3 font-serif text-2xl font-semibold text-ink">
+                <img src="/icon-32.png" alt="" className="size-8 shrink-0" />
+                <span>MemoryLane{version ? ` v${version}` : ""}</span>
+              </h2>
+              <CheckForUpdatesButton />
+            </div>
             <p className="mt-1 text-sm text-muted">{t("settingsAbout.tagline")}</p>
+            <p className="mt-1 text-sm text-muted">
+              {t("settingsAbout.website")}:{" "}
+              <a href="https://www.memorylaneapp.org" target="_blank" rel="noreferrer" className="text-accent underline">
+                https://www.memorylaneapp.org
+              </a>
+            </p>
           </div>
 
           <div className="space-y-1 text-sm">

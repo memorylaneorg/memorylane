@@ -28,6 +28,8 @@ import { registerCollectionRoutes } from "./api/collections-routes.js";
 import { registerTagRoutes } from "./api/tags-routes.js";
 import { registerLocationRoutes } from "./api/location-routes.js";
 import { registerCoreUpdateRoutes } from "./api/core-update-routes.js";
+import { registerTimelineRoutes } from "./api/timeline-routes.js";
+import { registerMomentsRoutes } from "./api/moments-routes.js";
 
 export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   const isProd = process.env.NODE_ENV === "production";
@@ -71,6 +73,8 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   await registerAnalysisRoutes(app, ctx);
   await registerReportsRoutes(app, ctx);
   await registerGearRoutes(app, ctx);
+  await registerTimelineRoutes(app, ctx);
+  await registerMomentsRoutes(app, ctx);
   await registerStackRoutes(app, ctx);
   await registerSimilarRoutes(app, ctx);
   await registerPersonRoutes(app, ctx);

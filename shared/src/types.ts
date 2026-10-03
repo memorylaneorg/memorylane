@@ -685,6 +685,62 @@ export interface GearYearTotalDto {
   count: number;
 }
 
+export interface TimelineMonthDto {
+  year: number;
+  month: number;
+  mediaCount: number;
+  samples: MediaDto[];
+}
+
+export interface TimelineYearDto {
+  year: number;
+  mediaCount: number;
+  months: TimelineMonthDto[];
+}
+
+export interface TimelineSummaryDto {
+  years: TimelineYearDto[];
+}
+
+export type MomentDetectionLevel = "broad" | "balanced" | "detailed";
+
+export interface MomentActiveDayDto {
+  date: string;
+  mediaCount: number;
+}
+
+export interface MomentDto {
+  kind: "event" | "multi-day";
+  startDate: string;
+  endDate: string;
+  calendarDays: number;
+  mediaCount: number;
+  activeDays: MomentActiveDayDto[];
+  samples: MediaDto[];
+}
+
+export interface MomentYearDto {
+  year: number;
+  mediaCount: number;
+  eventCount: number;
+  multiDayCount: number;
+  moments: MomentDto[];
+}
+
+export interface MomentsSummaryDto {
+  detection: MomentDetectionLevel;
+  years: MomentYearDto[];
+}
+
+export interface MomentDayDetailDto extends MomentActiveDayDto {
+  samples: MediaDto[];
+}
+
+export interface MomentDetailDto extends MomentDto {
+  detection: MomentDetectionLevel;
+  days: MomentDayDetailDto[];
+}
+
 // Stacks (design doc §8): a burst collapsed to one grid item.
 export type StackKind = "burst" | "manual";
 

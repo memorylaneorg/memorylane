@@ -94,6 +94,10 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
       return next;
     });
   }, []);
+  const resetZoom = useCallback(() => {
+    setZoom(ZOOM_MIN);
+    setPan({ x: 0, y: 0 });
+  }, []);
 
   // Pointer-based drag-to-pan (works for mouse and touch alike) - only takes
   // over once zoomed in; at zoom 1 the whole image already fits, and a
@@ -193,10 +197,22 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditing = !!target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
       if (e.key === "Escape") onClose();
-      else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && ["INPUT", "TEXTAREA"].includes((e.target as HTMLElement | null)?.tagName ?? "")) return;
+      else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && isEditing) return;
       else if (e.key === "ArrowRight") goNext();
       else if (e.key === "ArrowLeft") goPrev();
+      else if (!isEditing && !e.ctrlKey && !e.metaKey && current?.mediaType !== "video" && !livePlaying && (e.key === "+" || e.key === "=")) {
+        e.preventDefault();
+        zoomIn();
+      } else if (!isEditing && !e.ctrlKey && !e.metaKey && current?.mediaType !== "video" && !livePlaying && (e.key === "-" || e.key === "_")) {
+        e.preventDefault();
+        zoomOut();
+      } else if (!isEditing && !e.ctrlKey && !e.metaKey && current?.mediaType !== "video" && !livePlaying && e.key === "0") {
+        e.preventDefault();
+        resetZoom();
+      }
       else if (e.key === " ") {
         // Don't hijack Space when a button/input (or a focused video, whose
         // own native space-to-pause should win) already owns it - a global
@@ -210,7 +226,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [goNext, goPrev, onClose]);
+  }, [current?.mediaType, goNext, goPrev, livePlaying, onClose, resetZoom, zoomIn, zoomOut]);
 
   // A video playing (standalone, or a Live Photo's tapped-into video) drives
   // its own advance via onEnded below instead of the fixed interval - cutting
@@ -520,7 +536,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
                   onClick={zoomOut}
                   disabled={zoom <= ZOOM_MIN}
                   aria-label={t("viewer.zoomOut")}
-                  title={t("viewer.zoomOut")}
+                  title={`${t("viewer.zoomOut")} (-)`}
                   className="text-white disabled:opacity-40"
                 >
                   <ZoomOut size={16} strokeWidth={1.8} />
@@ -529,7 +545,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
                   onClick={zoomIn}
                   disabled={zoom >= ZOOM_MAX}
                   aria-label={t("viewer.zoomIn")}
-                  title={t("viewer.zoomIn")}
+                  title={`${t("viewer.zoomIn")} (+)`}
                   className="text-white disabled:opacity-40"
                 >
                   <ZoomIn size={16} strokeWidth={1.8} />

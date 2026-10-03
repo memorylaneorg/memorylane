@@ -189,21 +189,33 @@ export async function registerFolderRoutes(app: FastifyInstance, ctx: AppContext
     if (!folder || (folder.kind === "apple-photos" && !isApplePhotosEnabled(db))) {
       return reply.code(404).send({ error: "Folder not found" });
     }
-    const previewItems = (recursive: boolean) => {
-      const query = buildMediaQuery({ scope: { kind: "folder", folderId: id, recursive }, type: "photo", thumbnailDone: true });
-      return db.prepare(`${query.cte} SELECT media.id, media.thumbnail_version AS thumbnailVersion
-        FROM media ${query.joins} WHERE ${query.where} ORDER BY media.id DESC LIMIT 6`)
-        .all(...query.bindings);
-    };
-    const direct = previewItems(false) as Array<{ id: number; thumbnailVersion: number }>;
-    // One direct photo is not enough to animate a card. Fill the small,
-    // bounded preview set from descendants while keeping direct photos first.
-    const recursive = direct.length < 6 ? previewItems(true) as Array<{ id: number; thumbnailVersion: number }> : [];
-    const seen = new Set<number>();
-    const items = [...direct, ...recursive].filter((item) => {
-      if (seen.size >= 6 || seen.has(item.id)) return false;
-      seen.add(item.id); return true;
+    const subtree = buildMediaQuery({ scope: { kind: "folder", folderId: id, recursive: true }, type: "photo", thumbnailDone: true });
+    // Pick a small random set of contributing folders first. Running RANDOM()
+    // over folder groups is much cheaper than ranking every photo in a large
+    // subtree, and sampling each selected folder separately prevents a busy
+    // parent folder from monopolizing all frames.
+    const folderIds = db.prepare(`${subtree.cte}
+      SELECT media.parent_folder_id AS id
+      FROM media ${subtree.joins} WHERE ${subtree.where}
+      GROUP BY media.parent_folder_id ORDER BY RANDOM() LIMIT 6`)
+      .all(...subtree.bindings) as Array<{ id: number }>;
+    const samples = folderIds.map(({ id: sampleFolderId }) => {
+      const direct = buildMediaQuery({ scope: { kind: "folder", folderId: sampleFolderId, recursive: false }, type: "photo", thumbnailDone: true });
+      return db.prepare(`${direct.cte}
+        SELECT media.id, media.thumbnail_version AS thumbnailVersion
+        FROM media ${direct.joins} WHERE ${direct.where}
+        ORDER BY RANDOM() LIMIT 6`)
+        .all(...direct.bindings) as Array<{ id: number; thumbnailVersion: number }>;
     });
+    const items: Array<{ id: number; thumbnailVersion: number }> = [];
+    for (let index = 0; items.length < 6; index += 1) {
+      let added = false;
+      for (const sample of samples) {
+        if (sample[index]) { items.push(sample[index]); added = true; }
+        if (items.length === 6) break;
+      }
+      if (!added) break;
+    }
     return reply.send({ items });
   });
 
