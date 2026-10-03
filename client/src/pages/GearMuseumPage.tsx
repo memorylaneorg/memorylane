@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Aperture, Camera, ExternalLink, RefreshCw, Search, X } from "lucide-react";
 import type { GearCameraEnrichmentDto, GearCameraSummaryDto, GearLensSummaryDto, GearLensTimelineDto, GearYearTotalDto, MediaDto } from "@memorylane/shared";
 import { api } from "../api/client";
+import { formatNumber } from "../utils/format";
 import MediaGrid from "../components/MediaGrid";
 import Viewer from "../components/Viewer";
 import { useTheme, type Theme } from "../hooks/useTheme";
@@ -36,7 +37,7 @@ function yearOf(iso: string | null): string | null {
   return iso && /^\d{4}/.test(iso) ? iso.slice(0, 4) : null;
 }
 
-function yearRange(c: GearCameraSummaryDto): string {
+function yearRange(c: { firstPhoto: string | null; lastPhoto: string | null }): string {
   return [yearOf(c.firstPhoto), yearOf(c.lastPhoto)].filter(Boolean).join("–");
 }
 
@@ -100,6 +101,8 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
   const navigate = useNavigate();
   const [cameras, setCameras] = useState<GearCameraSummaryDto[] | null>(null);
   const [timelineLenses, setTimelineLenses] = useState<GearLensTimelineDto[] | null>(null);
+  const [museumLens, setMuseumLens] = useState<string | null>(null);
+  const [lensError, setLensError] = useState<string | null>(null);
   const [timelineKind, setTimelineKind] = useState<"camera" | "lens">("camera");
   const [yearTotals, setYearTotals] = useState<GearYearTotalDto[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
@@ -118,6 +121,15 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
   // on a borrowed/shared device) shouldn't read as "gear you owned" - server
   // enforces this via HAVING COUNT(*) >= minPhotos, applies to both views.
   const [minPhotos, setMinPhotos] = useState(50);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [settingsReady, setSettingsReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void api.settings.get().then((settings) => {
+      if (!cancelled) setMinPhotos(settings.gearMinPhotos);
+    }).catch((error) => { if (!cancelled) setSettingsError(String(error)); }).finally(() => { if (!cancelled) setSettingsReady(true); });
+    return () => { cancelled = true; };
+  }, []);
   const [refreshing, setRefreshing] = useState(false);
   // Matches the grid's own grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 (Tailwind
   // defaults: sm=640px, lg=1024px) - needed so the expansion panel can be
@@ -140,6 +152,7 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
   // ever refetching data that's actually already stale-free.
   useEffect(() => {
     let cancelled = false;
+    if (!settingsReady) return;
     void api.gear.cameras(minPhotos).then((data) => {
       if (cancelled) return;
       setCameras(applyEnrichment(data, gearEnrichmentCache));
@@ -154,18 +167,21 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
     return () => {
       cancelled = true;
     };
-  }, [minPhotos]);
+  }, [minPhotos, settingsReady]);
 
   useEffect(() => {
     void api.gear.yearTotals().then(setYearTotals);
   }, []);
 
   useEffect(() => {
-    if (mode !== "timeline" || timelineKind !== "lens") return;
+    if (!settingsReady || timelineKind !== "lens") return;
     let cancelled = false;
-    void api.gear.lensTimeline(minPhotos).then((data) => { if (!cancelled) setTimelineLenses(data); });
+    setTimelineLenses(null);
+    setLensError(null);
+    void api.gear.lensTimeline(minPhotos).then((data) => { if (!cancelled) setTimelineLenses(data); })
+      .catch((error) => { if (!cancelled) setLensError(String(error)); });
     return () => { cancelled = true; };
-  }, [minPhotos, mode, timelineKind]);
+  }, [minPhotos, mode, timelineKind, settingsReady]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -180,7 +196,7 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
         });
       }),
       api.gear.yearTotals().then(setYearTotals),
-      ...(mode === "timeline" && timelineKind === "lens" ? [api.gear.lensTimeline(minPhotos).then(setTimelineLenses)] : []),
+      ...(timelineKind === "lens" ? [api.gear.lensTimeline(minPhotos).then(setTimelineLenses)] : []),
     ]).finally(() => setRefreshing(false));
   };
 
@@ -218,8 +234,10 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
   const visibleTimelineLenses = useMemo(() => {
     if (!timelineLenses) return [];
     const q = query.trim().toLowerCase();
-    return q ? timelineLenses.filter((lens) => displayName(lens).toLowerCase().includes(q)) : timelineLenses;
-  }, [timelineLenses, query]);
+    const filtered = q ? timelineLenses.filter((lens) => displayName(lens).toLowerCase().includes(q)) : timelineLenses;
+    return [...filtered].sort((a, b) => sort === "name" ? displayName(a).localeCompare(displayName(b))
+      : sort === "recent" ? (b.lastPhoto ?? "").localeCompare(a.lastPhoto ?? "") : b.photoCount - a.photoCount);
+  }, [timelineLenses, query, sort]);
   const timelineItems = timelineKind === "camera" ? visibleCameras : visibleTimelineLenses;
 
   const selected = cameras?.find((c) => c.label === selectedCamera) ?? null;
@@ -237,7 +255,7 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
           <h1 className="font-serif text-3xl font-semibold text-ink">{t(mode === "grid" ? "navigation.gearMuseum" : "navigation.gearTimeline")}</h1>
           <p className="mt-1 text-sm text-muted">
             {mode === "grid"
-              ? t("gearUi.museumIntro") : t("gearUi.timelineIntro")}
+              ? t(timelineKind === "lens" ? "gearMuseumExtra.intro" : "gearUi.museumIntro") : t("gearUi.timelineIntro")}
           </p>
         </div>
         <div className="relative w-full max-w-xs">
@@ -245,29 +263,31 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={t(mode === "timeline" && timelineKind === "lens" ? "gearUi.searchLenses" : "gearUi.searchCameras")}
+            placeholder={t(timelineKind === "lens" ? "gearUi.searchLenses" : "gearUi.searchCameras")}
             className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-sm text-ink outline-none focus:border-accent"
           />
         </div>
       </div>
 
+      {settingsError && <p role="alert" className="text-sm text-red-600">{settingsError}</p>}
       {cameras === null && <p className="text-sm text-muted">{t("common.loading")}</p>}
-      {cameras?.length === 0 && <p className="text-sm text-muted">{t("gearUi.noExif")}</p>}
+      {cameras?.length === 0 && timelineKind === "camera" && <p className="text-sm text-muted">{t(minPhotos > 0 ? "gearSetting.filtered" : "gearUi.noExif")}</p>}
 
-      {cameras && cameras.length > 0 && (
+      {cameras && (
         <>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <span className="text-sm text-muted">
-              {t(mode === "timeline" && timelineKind === "lens" ? "gearUi.lenses" : "gearUi.cameras", { count: mode === "timeline" ? timelineItems.length : visibleCameras.length })}
+              {t(timelineKind === "lens" ? "gearUi.lenses" : "gearUi.cameras", { count: timelineItems.length })}
             </span>
-            <div className="flex items-center gap-3">
-              {mode === "timeline" && (
-                <div role="group" aria-label={t("gearUi.timelineType")} className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
+            <div className="flex flex-wrap items-center gap-3">
+              {(
+                <div role="group" aria-label={t("gearMuseumExtra.gearType")} className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
                   {([ ["camera", t("gearUi.cameraPlural"), Camera], ["lens", t("gearUi.lensPlural"), Aperture] ] as const).map(([value, label, Icon]) => (
                     <button key={value} type="button" title={label} aria-label={label} aria-pressed={timelineKind === value}
-                      onClick={() => { setTimelineKind(value); setSelectedCamera(null); setQuery(""); }}
-                      className={`grid size-7 place-items-center rounded transition-colors ${timelineKind === value ? "bg-accent text-page" : "text-muted hover:bg-hover hover:text-ink"}`}>
-                      <Icon size={15} strokeWidth={1.8} />
+                      onClick={() => { setTimelineKind(value); setSelectedCamera(null); setMuseumLens(null); setViewerIndex(null); setQuery(""); }}
+                      className={`inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm font-medium transition-colors ${timelineKind === value ? "bg-accent text-page" : "text-muted hover:bg-hover hover:text-ink"}`}>
+                      <Icon size={15} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
+                      <span>{label}</span>
                     </button>
                   ))}
                 </div>
@@ -306,7 +326,25 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
             </div>
           </div>
 
-          {mode === "grid" ? (
+          {mode === "grid" && timelineKind === "lens" ? (
+            <>
+              {lensError && <p role="alert" className="text-sm text-red-600">{lensError}</p>}
+              {!timelineLenses && !lensError && <p className="text-sm text-muted">{t("common.loading")}</p>}
+              {timelineLenses && visibleTimelineLenses.length === 0 && <p className="text-sm text-muted">{t("gearMuseumExtra.empty")}</p>}
+              <div className="grid grid-cols-2 gap-x-0 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
+                {visibleTimelineLenses.map((lens, index) => {
+                  const selectedLensIndex = visibleTimelineLenses.findIndex((item) => item.label === museumLens);
+                  const rowEnd = selectedLensIndex < 0 ? -1 : Math.min(Math.ceil((selectedLensIndex + 1) / columnCount) * columnCount - 1, visibleTimelineLenses.length - 1);
+                  const selected = visibleTimelineLenses[selectedLensIndex];
+                  return <Fragment key={lens.label}>
+                    <GearBay gear={lens} kind="lens" selected={museumLens === lens.label} spotlight={theme === "dark"}
+                      onClick={() => setMuseumLens((current) => current === lens.label ? null : lens.label)} />
+                    {index === rowEnd && selected && <div className="col-span-full"><LensMuseumDetail key={selected.label} lens={selected} /></div>}
+                  </Fragment>;
+                })}
+              </div>
+            </>
+          ) : mode === "grid" ? (
             /* Zero-width grid gap keeps shelves touching across a row. The
                expanded panel is inserted with col-span-full right after the
                LAST item of the row containing the selected camera (not
@@ -864,11 +902,13 @@ function Stat({ label, value }: { label: string; value: string }) {
 // shelf/fascia beneath, which must stay perfectly continuous across a row.
 function GearBay({
   gear,
+  kind = "camera",
   selected,
   spotlight,
   onClick,
 }: {
-  gear: GearCameraSummaryDto;
+  gear: TimelineGear;
+  kind?: "camera" | "lens";
   selected: boolean;
   // Only lit on the dark theme - the warm overhead glow this simulates reads
   // as atmospheric on a genuinely dark backdrop, but shows up as an unwanted
@@ -902,7 +942,7 @@ function GearBay({
           style={{ background: "radial-gradient(ellipse, rgba(0,0,0,0.55), transparent 72%)" }}
         />
         <img
-          src={gear.imageUrl ?? GENERIC_IMAGE.camera}
+          src={gear.imageUrl ?? GENERIC_IMAGE[kind]}
           alt=""
           loading="lazy"
           className={`relative max-h-[85%] w-auto object-contain transition duration-300 group-hover:scale-105 ${realPhotoFrame(!!gear.imageUrl)}`}
@@ -927,4 +967,37 @@ function GearBay({
       </div>
     </button>
   );
+}
+
+export function LensMuseumDetail({ lens }: { lens: GearLensTimelineDto }) {
+  const { t } = useTranslation();
+  const [photos, setPhotos] = useState<MediaDto[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const href = `/reports?${new URLSearchParams({ lens: lens.label })}`;
+  useEffect(() => {
+    let cancelled = false;
+    void api.media.list({ lens: lens.label }, 0, 18).then((result) => {
+      if (!cancelled) setPhotos(result.items);
+    }).catch((error) => { if (!cancelled) setError(String(error)); });
+    return () => { cancelled = true; };
+  }, [lens.label]);
+  return <section className="mt-6 rounded-xl bg-page p-6">
+    <h2 className="font-serif text-xl font-semibold text-ink">{displayName(lens)}</h2>
+    <p className="text-sm text-muted">{yearRange(lens)}</p>
+    <p className="mt-1">{t("gearUi.memories", { count: lens.photoCount })}</p>
+    <Link to={href} className="mt-3 inline-flex items-center gap-1.5 text-sm text-accent underline">{t("gearUi.viewReports")} <ExternalLink size={14} /></Link>
+    {lens.imageUrl && (lens.imageLicense || lens.imageAttribution) && <p className="mt-2 text-xs text-muted">{[lens.imageLicense, lens.imageAttribution].filter(Boolean).join(" · ")}</p>}
+    <div className="my-4 flex flex-wrap gap-6 text-sm">
+      {lens.firstPhoto && <Stat label={t("gearUi.firstUsed")} value={formatDate(lens.firstPhoto)} />}
+      {lens.lastPhoto && <Stat label={t("gearUi.lastUsed")} value={formatDate(lens.lastPhoto)} />}
+      {lens.yearBreakdown.length > 0 && <div><p className="text-xs uppercase text-muted">{t("gearUi.photosByYear")}</p>
+        {lens.yearBreakdown.map((year) => <p key={year.year}>{year.year}: {formatNumber(year.count)}</p>)}</div>}
+    </div>
+    <h3 className="mb-3 text-sm font-medium">{t("gearMuseumExtra.photos")}</h3>
+    {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+    {!photos && !error && <p className="text-sm text-muted">{t("common.loading")}</p>}
+    {photos && <MediaGrid items={photos} onOpen={setViewerIndex} />}
+    {photos && viewerIndex !== null && <Viewer items={photos} startIndex={viewerIndex} onClose={() => setViewerIndex(null)} />}
+  </section>;
 }

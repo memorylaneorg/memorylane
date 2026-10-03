@@ -154,6 +154,7 @@ export interface SettingsDto {
   archiveTitle: string;
   bindAddress: string;
   museumServiceEnabled: boolean;
+  gearMinPhotos: number;
   port: number;
   scanIntervalDays: number | null;
   scanScheduleEnabled: boolean;
@@ -196,6 +197,7 @@ export interface UpdateSettingsRequest {
   archiveTitle?: string;
   bindAddress?: string;
   museumServiceEnabled?: boolean;
+  gearMinPhotos?: number;
   port?: number;
   scanIntervalDays?: number | null;
   scanScheduleEnabled?: boolean;

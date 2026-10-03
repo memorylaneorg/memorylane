@@ -148,6 +148,7 @@ export default function SettingsPage() {
       return next;
     });
   };
+  const [gearSettingsError, setGearSettingsError] = useState<string | null>(null);
   const [settings, setSettings] = useState<SettingsDto | null>(null);
   const [status, setStatus] = useState<ScanStatusDto | null>(null);
   const [storage, setStorage] = useState<StorageStatsDto | null>(null);
@@ -726,6 +727,22 @@ export default function SettingsPage() {
               <span className="mt-1 block text-sm text-muted">{t("settings.museumHelp")}</span>
             </span>
           </label>
+        </section>
+        <section className="max-w-3xl space-y-2">
+          <h2 className="font-serif text-lg font-semibold text-ink">{t("navigation.gearMuseum")}</h2>
+          <label className="flex items-center gap-3 text-sm text-ink">
+            {t("gearSetting.label")}
+            <input type="number" min={0} max={1000000} step={1} defaultValue={settings.gearMinPhotos}
+              onBlur={(event) => {
+                const value = event.target.valueAsNumber;
+                if (Number.isInteger(value) && value >= 0 && value <= 1000000) {
+                  setGearSettingsError(null);
+                  void updateSchedule({ gearMinPhotos: value }).catch((error) => setGearSettingsError(String(error)));
+                } else event.target.value = String(settings.gearMinPhotos);
+              }} className="w-24 rounded-lg border border-border bg-surface px-2 py-1.5" />
+          </label>
+          <p className="text-sm text-muted">{t("gearSetting.help")}</p>
+          {gearSettingsError && <p role="alert" className="text-sm text-red-600">{gearSettingsError}</p>}
         </section>
         {activeTab === "plugins" && <PluginsSettings />}
       </div>
