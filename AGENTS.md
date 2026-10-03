@@ -94,6 +94,18 @@ in `server/src/server.ts`.
 | Apple Photos | Optional local macOS catalog integration: `server/src/plugins/apple-photos/` and `plugins/optional/com.memorylane.apple-photos/`; source visibility also lives in `server/src/plugins/registry.ts`. |
 | Settings/auth/update | `server/src/db/settings-repo.ts`, settings/auth/core-update routes, `server/src/auth/`, `client/src/pages/SettingsPage.tsx`, `server/src/plugin-platform/`, and tray updater. |
 
+### Photo viewer loading
+
+- `client/src/components/ProgressiveImage.tsx` shows the indexed thumbnail while
+  `utils/loadImage.ts` loads and decodes the original or RAW preview selected by
+  `utils/mediaSrc.ts`. Navigation cancels pending updates; errors retain the cached
+  thumbnail and trigger the existing unavailable-original notice.
+- Thumbnail paint alone must not trigger the viewer's next-photo preload or People
+  requests. Release that gate after the larger image is ready, or after it fails
+  with an available thumbnail. Keep navigation controls above the image hit area.
+- Validate delayed success, failed originals, and navigation during decoding, using
+  isolated local data/cache. Video and Live Photo playback use their existing paths.
+
 ### AI and face grouping details
 
 - AI Runtime is a Python service receiving JPEG bytes/text over authenticated

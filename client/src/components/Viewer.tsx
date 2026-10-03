@@ -10,6 +10,7 @@ import { useEngagementTracking } from "../hooks/useEngagementTracking";
 import { usePluginActive } from "../utils/plugins";
 import { ApplePreviewNotice } from "./ApplePreviewNotice";
 import { OriginalUnavailableNotice } from "./OriginalUnavailableNotice";
+import { ProgressiveImage } from "./ProgressiveImage";
 import TagEditor from "./TagEditor";
 import { useTranslation } from "react-i18next";
 
@@ -34,6 +35,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
   const { t } = useTranslation();
   const [index, setIndex] = useState(startIndex);
   const [fallback, setFallback] = useState(false);
+  const handleImageUnavailable = useCallback(() => setFallback(true), []);
   const [playing, setPlaying] = useState(autoPlay);
   // A Live Photo opens on its still image - this only becomes true once the
   // user explicitly taps the LIVE badge to play the paired ~3s video.
@@ -67,6 +69,9 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
   const awaitingMoreRef = useRef(false);
 
   const current = items[index];
+  const handleImageReady = useCallback(() => {
+    if (current) setLoadedMediaId(current.id);
+  }, [current?.id]);
   useEngagementTracking(current?.id);
   const aiSearchAvailable = usePluginActive("com.memorylane.ai-search");
 
@@ -330,7 +335,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
   }, [current.id, loadedMediaId]);
 
   const controlButtonClass =
-    "h-12 w-12 rounded-full border-none bg-overlay-control text-2xl text-white transition-colors hover:bg-overlay-control-hover";
+    "z-10 h-12 w-12 rounded-full border-none bg-overlay-control text-2xl text-white transition-colors hover:bg-overlay-control-hover";
 
   // True only for the plain still-image case - zoom/pan don't apply to
   // video or a Live Photo's playing clip, so the zoom controls and the
@@ -438,15 +443,14 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
               className="max-h-[82vh] max-w-[92vw] object-contain"
             />
           ) : (
-            <img
+            <ProgressiveImage
               key={current.id}
-              src={displaySrc(current, fallback)}
+              src={displaySrc(current, false)}
+              thumbnailSrc={api.media.thumbnailUrl(current.id, current.thumbnailVersion)}
               alt={current.filename}
               draggable={false}
-              onLoad={() => setLoadedMediaId(current.id)}
-              onError={() => {
-                if (!fallback) setFallback(true);
-              }}
+              onReady={handleImageReady}
+              onUnavailable={handleImageUnavailable}
               onDragStart={(e) => e.preventDefault()}
               onPointerDown={handleImagePointerDown}
               onPointerMove={handleImagePointerMove}
@@ -455,6 +459,8 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
               onPointerCancel={endImagePan}
               onWheel={handleImageWheel}
               style={{
+                width: "92vw",
+                height: "82vh",
                 transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                 transition: panning ? "none" : "transform 0.15s ease-out",
                 cursor: zoom > ZOOM_MIN ? (panning ? "grabbing" : "grab") : "default",
