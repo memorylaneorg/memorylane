@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { landPath, project, unproject, viewportBounds } from "./location-map";
+import { landPath, project, unproject, viewportBounds, visibleMapTiles } from "./location-map";
 
 describe("offline map geometry", () => {
   it("projects the equator to the middle and reverses coordinates", () => {
@@ -26,5 +26,31 @@ describe("offline map geometry", () => {
     const path = landPath({ type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "Polygon", coordinates: [[[-1, 0], [1, 0], [0, 1], [-1, 0]]] } }] });
     expect(path).toMatch(/^M/);
     expect(path).toContain("Z");
+  });
+});
+
+
+describe("online map tiles", () => {
+  it("requests only visible tiles and increases detail instead of stretching the world map", () => {
+    const world = visibleMapTiles({ x: 0, y: 0, width: 1000, height: 1000 }, 1024);
+    expect(world).toHaveLength(16);
+    expect(world[0]).toMatchObject({ z: 2, column: 0, row: 0, x: 0, y: 0, size: 250 });
+    const close = visibleMapTiles({ x: 250, y: 250, width: 500, height: 500 }, 1024);
+    expect(close).toHaveLength(16);
+    expect(close[0]).toMatchObject({ z: 3, column: 2, row: 2, x: 250, y: 250, size: 125 });
+    expect(close.at(-1)).toMatchObject({ column: 5, row: 5 });
+  });
+
+  it("keeps tile coordinates inside the world at the poles and date line", () => {
+    const tiles = visibleMapTiles({ x: 875, y: 875, width: 250, height: 250 }, 512);
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0]).toMatchObject({ z: 3, column: 7, row: 7 });
+  });
+
+  it("provides retina detail without exceeding the provider zoom limit", () => {
+    expect(visibleMapTiles({ x: 0, y: 0, width: 1000, height: 520 }, 1024, 2)[0].z).toBe(3);
+    const tiles = visibleMapTiles({ x: 500, y: 500, width: 1000 / 131072, height: 520 / 131072 }, 2048, 2);
+    expect(tiles[0].z).toBe(19);
+    expect(tiles.length).toBeLessThan(100);
   });
 });

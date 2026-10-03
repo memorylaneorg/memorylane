@@ -21,7 +21,7 @@ const cellsSchema = z.object({
   east: z.coerce.number().finite().min(-180).max(180),
   south: z.coerce.number().finite().min(-90).max(90),
   north: z.coerce.number().finite().min(-90).max(90),
-  zoom: z.coerce.number().int().min(0).max(10),
+  zoom: z.coerce.number().int().min(0).max(17),
 }).refine((value) => value.south <= value.north
   && (value.fromYear === undefined || value.toYear === undefined || value.fromYear <= value.toYear));
 const itemsSchema = z.object({
@@ -46,7 +46,7 @@ function parseKey(raw: string): { key: string; zoom: number } | null {
   if (parts.length !== 3 || parts.some((part) => !Number.isSafeInteger(part))) return null;
   const [zoom, x, y] = parts;
   const n = 32 * 2 ** zoom;
-  if (zoom < 0 || zoom > 10 || x < 0 || x >= n || y < 0 || y >= n) return null;
+  if (zoom < 0 || zoom > 17 || x < 0 || x >= n || y < 0 || y >= n) return null;
   return { key: `${zoom}:${x}:${y}`, zoom };
 }
 

@@ -41,3 +41,6 @@ tray-go/*smoke-*/
 
 # generated from server/package.json by scripts/generate-version.mjs
 server/src/version.ts
+
+# Private local photo fixtures, source manifests, and isolated app data
+/local-test-library/

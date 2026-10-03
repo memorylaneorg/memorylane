@@ -857,6 +857,15 @@ export default function SettingsPage() {
           </div>
 
           <div>
+            <h3 className="mb-2 font-serif text-lg font-semibold text-ink">{t("mapCredits.title")}</h3>
+            <div className="space-y-2 rounded-lg border border-border bg-surface p-4 text-sm leading-6 text-muted">
+              <p>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="text-accent underline">OpenStreetMap</a> contributors</p>
+              <p><a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noreferrer" className="text-accent underline">{t("mapCredits.license")}</a></p>
+              <p><a href="https://operations.osmfoundation.org/policies/tiles/" target="_blank" rel="noreferrer" className="text-accent underline">{t("mapCredits.policy")}</a></p>
+            </div>
+          </div>
+
+          <div>
             <h3 className="mb-2 font-serif text-lg font-semibold text-ink">{t("settingsAbout.licenses")}</h3>
             <div className="max-h-72 overflow-y-auto rounded-lg border border-border bg-surface p-4 text-sm leading-6 text-muted" tabIndex={0}>
               <p>{t("settingsAbout.openSource")}</p>

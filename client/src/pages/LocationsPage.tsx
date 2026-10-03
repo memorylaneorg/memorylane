@@ -4,8 +4,9 @@ import type { LocationCellDto, LocationItemDto, LocationSummaryDto, MediaDto } f
 import land from "../assets/ne_110m_land.json";
 import { api, type LocationBounds, type LocationFilters } from "../api/client";
 import Viewer from "../components/Viewer";
+import LocationBasemap from "../components/LocationBasemap";
 import { useTranslation } from "react-i18next";
-import { landPath, MAP_SIZE, project, viewportBounds, type LandCollection, type MapViewport } from "../utils/location-map";
+import { landPath, MAP_SIZE, MAX_MAP_ZOOM, project, viewportBounds, type LandCollection, type MapViewport } from "../utils/location-map";
 
 const BASE_HEIGHT = 520;
 const DEFAULT_VIEW: MapViewport = { x: 0, y: (MAP_SIZE - BASE_HEIGHT) / 2, width: MAP_SIZE, height: BASE_HEIGHT };
@@ -37,6 +38,7 @@ export default function LocationsPage() {
   const [visibleCount, setVisibleCount] = useState(0);
   const [view, setView] = useState<MapViewport>(DEFAULT_VIEW);
   const [zoom, setZoom] = useState(0);
+  const [detailedMap, setDetailedMap] = useState(true);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [selectedBounds, setSelectedBounds] = useState<LocationBounds | null>(null);
   const [items, setItems] = useState<LocationItemDto[]>([]);
@@ -124,7 +126,7 @@ export default function LocationsPage() {
 
   const mediaItems = items.flatMap((item) => item.kind === "media" ? [item.media] : []);
   const zoomTo = (nextZoom: number) => {
-    const next = Math.max(0, Math.min(10, nextZoom));
+    const next = Math.max(0, Math.min(MAX_MAP_ZOOM, nextZoom));
     if (next === zoom) return;
     const factor = 2 ** next;
     const width = MAP_SIZE / factor, height = BASE_HEIGHT / factor;
@@ -171,7 +173,7 @@ export default function LocationsPage() {
   return <div className="space-y-5">
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div><h1 className="font-serif text-3xl font-semibold text-ink">{t("pages.locations")}</h1>
-        <p className="mt-1 text-sm text-muted">Explore where your photos were taken. The map works offline.</p></div>
+        <p className="mt-1 text-sm text-muted">{t("locationMap.intro")}</p></div>
       <span className="text-sm tabular-nums text-muted">{visibleCount.toLocaleString()} photos in view{loadingMap ? " · Updating…" : ""}</span>
     </div>
     <div className="flex flex-wrap gap-2" role="group" aria-label="Photo source">
@@ -204,10 +206,16 @@ export default function LocationsPage() {
             className="min-w-0 flex-1" aria-label="End year" /></label>
       </div>
     </section>}
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+      <label className="flex items-center gap-2 text-ink"><input type="checkbox" checked={detailedMap}
+        onChange={(event) => setDetailedMap(event.target.checked)} />{t("locationMap.detailed")}</label>
+      <span className="text-xs text-muted">{t(detailedMap ? "locationMap.onlineNotice" : "locationMap.offlineNotice")}</span>
+    </div>
     {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
     <div className="overflow-hidden rounded-xl border border-border bg-media shadow-card">
-      <div className="relative">
-        <svg ref={mapRef} viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`} className="aspect-[1000/520] w-full cursor-grab touch-none active:cursor-grabbing"
+      <div className="relative isolate">
+        <LocationBasemap view={view} outline={outline} detailed={detailedMap} />
+        <svg ref={mapRef} viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`} className="relative aspect-[1000/520] w-full cursor-grab touch-none active:cursor-grabbing"
           role="region" aria-label="Interactive photo location map" tabIndex={0}
           onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={(event) => {
             const released = drag.current;
@@ -232,8 +240,6 @@ export default function LocationsPage() {
             event.preventDefault();
           }}>
           <defs><radialGradient id="location-heat"><stop offset="0%" stopColor="#ef4444" stopOpacity="0.7" /><stop offset="100%" stopColor="#f97316" stopOpacity="0" /></radialGradient></defs>
-          <rect x={0} y={0} width={MAP_SIZE} height={MAP_SIZE} fill="var(--color-media)" />
-          <path d={outline} fill="var(--color-paper-warm)" stroke="var(--color-border-strong)" strokeWidth={view.width / 1000} />
           {cells.map((cell) => {
             const point = project(cell.lon, cell.lat);
             const radius = Math.min(29, 7 + Math.sqrt(cell.count) * 1.4) * view.width / 1000;
@@ -250,8 +256,8 @@ export default function LocationsPage() {
             </g>;
           })}
         </svg>
-        <div className="absolute right-3 top-3 flex flex-col gap-1">
-          <button type="button" onClick={() => zoomTo(zoom + 1)} disabled={zoom === 10} aria-label="Zoom in" className="rounded bg-surface px-3 py-1 text-lg text-ink shadow-card disabled:opacity-50">+</button>
+        <div className="absolute right-3 top-3 z-20 flex flex-col gap-1">
+          <button type="button" onClick={() => zoomTo(zoom + 1)} disabled={zoom === MAX_MAP_ZOOM} aria-label="Zoom in" className="rounded bg-surface px-3 py-1 text-lg text-ink shadow-card disabled:opacity-50">+</button>
           <button type="button" onClick={() => zoomTo(zoom - 1)} disabled={zoom === 0} aria-label="Zoom out" className="rounded bg-surface px-3 py-1 text-lg text-ink shadow-card disabled:opacity-50">−</button>
         </div>
       </div>

@@ -39,3 +39,20 @@ Models are downloaded on demand and are not covered by MemoryLane’s MIT Licens
 Application artwork is part of MemoryLane unless a file says otherwise. Historical-person image fixtures under the AI runtime tests are public-domain Wikimedia Commons images; their individual sources are recorded in `plugins/optional/com.memorylane.ai-runtime/python/tests/fixtures/SOURCES.md`.
 
 Preserve upstream copyright and license files in source and binary distributions.
+
+## Online location maps
+
+The Locations view requests standard OpenStreetMap raster tiles directly from
+`https://tile.openstreetmap.org/{z}/{x}/{y}.png`. Map data is © OpenStreetMap
+contributors, available under the Open Database License (ODbL); see
+https://www.openstreetmap.org/copyright. Attribution remains visible on the map. Settings → About also includes map credits
+and links to the ODbL and tile usage policy.
+This does not change the license of MemoryLane's source code.
+
+The community-hosted tile service has no API-key or payment requirement for normal
+interactive use, but is capacity-limited and provides no availability guarantee.
+Follow https://operations.osmfoundation.org/policies/tiles/: request only viewed
+areas, retain normal browser caching and a valid Referer, and do not add bulk tile
+fetching or offline downloads. Tile requests reveal the viewed map area and the
+client's IP address to the provider; original photos are not uploaded. The bundled
+Natural Earth outline remains the offline fallback. Reviewed 2026-10-03.
