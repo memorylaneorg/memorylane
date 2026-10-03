@@ -279,14 +279,15 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
             <span className="text-sm text-muted">
               {t(timelineKind === "lens" ? "gearUi.lenses" : "gearUi.cameras", { count: timelineItems.length })}
             </span>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {(
                 <div role="group" aria-label={t("gearMuseumExtra.gearType")} className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
                   {([ ["camera", t("gearUi.cameraPlural"), Camera], ["lens", t("gearUi.lensPlural"), Aperture] ] as const).map(([value, label, Icon]) => (
                     <button key={value} type="button" title={label} aria-label={label} aria-pressed={timelineKind === value}
                       onClick={() => { setTimelineKind(value); setSelectedCamera(null); setMuseumLens(null); setViewerIndex(null); setQuery(""); }}
-                      className={`grid size-7 place-items-center rounded transition-colors ${timelineKind === value ? "bg-accent text-page" : "text-muted hover:bg-hover hover:text-ink"}`}>
-                      <Icon size={15} strokeWidth={1.8} />
+                      className={`inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm font-medium transition-colors ${timelineKind === value ? "bg-accent text-page" : "text-muted hover:bg-hover hover:text-ink"}`}>
+                      <Icon size={15} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
+                      <span>{label}</span>
                     </button>
                   ))}
                 </div>
