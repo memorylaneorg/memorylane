@@ -11,6 +11,7 @@ import { usePluginActive } from "../utils/plugins";
 import { ApplePreviewNotice } from "./ApplePreviewNotice";
 import { OriginalUnavailableNotice } from "./OriginalUnavailableNotice";
 import { ProgressiveImage } from "./ProgressiveImage";
+import CollectionPicker from "./CollectionPicker";
 import TagEditor from "./TagEditor";
 import { useTranslation } from "react-i18next";
 
@@ -660,6 +661,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
           {current.durationSeconds != null && <div>Duration: {formatDuration(current.durationSeconds)}</div>}
           <div className="break-all text-white/70">Path: {current.absolutePath}</div>
           <TagEditor mediaId={current.id} />
+          {current.mediaType !== "video" && <CollectionPicker key={current.id} mediaIds={[current.id]} />}
           <button
             onClick={goToFolder}
             className="mt-1 self-start text-left text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"

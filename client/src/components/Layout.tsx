@@ -24,6 +24,7 @@ const peopleItem: NavItem = { to: "/people", labelKey: "navigation.people", icon
 // the Library dropdown entirely rather than appearing in both places.
 const libraryItems: NavItem[] = [
   { to: "/locations", labelKey: "navigation.locations", icon: MapPinned },
+  { to: "/collections", labelKey: "collections.title", icon: LibraryBig },
   { to: "/tags", labelKey: "navigation.tags", icon: Tags },
   { to: "/reports", labelKey: "navigation.reports", icon: BarChart3 },
   { to: "/gear-museum", labelKey: "navigation.gearMuseum", icon: Camera },

@@ -1,4 +1,5 @@
 import type {
+  CollectionDto, CollectionId,
   TvSharingSettingsDto,
   TvSharingStatusDto,
   UserDto,
@@ -120,6 +121,24 @@ export function toQueryString(params: Record<string, string | number | undefined
 }
 
 export const api = {
+  collections: {
+    list: () => request<CollectionDto[]>('/api/collections'),
+    create: (name: string) => request<CollectionDto>('/api/collections', {method:'POST',body:JSON.stringify({name})}),
+    rename: (id: number, name: string) => request<{ok:true}>(`/api/collections/${id}`, {method:'PATCH',body:JSON.stringify({name})}),
+    delete: (id: number) => request<{ok:true}>(`/api/collections/${id}`, {method:'DELETE'}),
+    media: (id: CollectionId, offset=0, limit=100) => request<PaginatedResult<MediaDto>>(`/api/collections/${id}/media?offset=${offset}&limit=${limit}`),
+    add: async (id: number, source: {mediaIds:number[]} | {folderId:number;recursive:boolean}) => {
+      if ('folderId' in source) return request<{added:number}>(`/api/collections/${id}/members`, {method:'POST',body:JSON.stringify(source)});
+      let added=0;
+      for(let offset=0;offset<source.mediaIds.length;offset+=1000) added+=(await request<{added:number}>(`/api/collections/${id}/members`, {method:'POST',body:JSON.stringify({mediaIds:source.mediaIds.slice(offset,offset+1000)})})).added;
+      return {added};
+    },
+    remove: async (id: number, mediaIds: number[]) => {
+      let removed=0;
+      for(let offset=0;offset<mediaIds.length;offset+=1000) removed+=(await request<{removed:number}>(`/api/collections/${id}/members`, {method:'DELETE',body:JSON.stringify({mediaIds:mediaIds.slice(offset,offset+1000)})})).removed;
+      return {removed};
+    },
+  },
   tvSharing: {
     get: () => request<TvSharingStatusDto>("/api/tv-sharing"),
     update: (settings: TvSharingSettingsDto) => request<{ settings: TvSharingSettingsDto; runtime: TvSharingStatusDto["runtime"] }>("/api/tv-sharing", { method: "PUT", body: JSON.stringify(settings) }),

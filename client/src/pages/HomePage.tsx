@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMatch, useNavigate } from "react-router-dom";
 import { CheckSquare, Layers, Pencil } from "lucide-react";
 import type { FolderDto, HomeSummaryDto, MediaDto, MediaTypeFilter as MediaTypeFilterValue, OnThisDayTier, ScanRootDto } from "@memorylane/shared";
 import { api } from "../api/client";
 import FolderCard from "../components/FolderCard";
 import { AppleBrowseCard } from "../components/AppleBrowseCard";
+import CollectionsPage from "./CollectionsPage";
 import InlineSlideshow from "../components/InlineSlideshow";
 import MediaGrid from "../components/MediaGrid";
 import MediaTypeFilter from "../components/MediaTypeFilter";
@@ -22,6 +23,7 @@ const PAGE_SIZE = 200;
 
 export default function HomePage() {
   const { t } = useTranslation();
+  const collectionsTab = useMatch("/collections") !== null;
   const [folders, setFolders] = useState<FolderDto[] | null>(null);
   const [appleLibraries, setAppleLibraries] = useState<{ root: ScanRootDto; count: number; coverMediaId: number | null; thumbnailVersion: number }[]>([]);
   const [appleRootIds, setAppleRootIds] = useState<number[]>([]);
@@ -168,7 +170,7 @@ export default function HomePage() {
   }, [libraryMedia.length, mediaType, showAllFiles]);
 
   const hasMoreLibraryMedia = showAllFiles && libraryMedia.length < libraryMediaTotal;
-  const librarySentinelRef = useInfiniteScroll(loadMoreLibraryMedia, hasMoreLibraryMedia, loadingLibraryMedia);
+  const librarySentinelRef = useInfiniteScroll(loadMoreLibraryMedia, !collectionsTab && hasMoreLibraryMedia, loadingLibraryMedia);
 
   const loadTab = useCallback(async (tab: MemoryTab) => {
     setTabLoading(true);
@@ -369,9 +371,14 @@ export default function HomePage() {
       </section>
 
       <section>
+        <h2 className="mb-4 font-serif text-2xl font-semibold text-ink">{t("pages.yourLibrary")}</h2>
+        <div role="tablist" aria-label={t("pages.yourLibrary")} className="mb-5 flex gap-2">
+          {([false, true] as const).map(isCollections => <button key={String(isCollections)} type="button" role="tab" id={isCollections ? "library-collections-tab" : "library-folders-tab"} aria-selected={collectionsTab === isCollections} aria-controls="library-panel" tabIndex={collectionsTab === isCollections ? 0 : -1} onKeyDown={event => { if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) { event.preventDefault(); const next = event.key === "Home" ? false : event.key === "End" ? true : !collectionsTab; navigate(next ? "/collections" : "/"); document.getElementById(next ? "library-collections-tab" : "library-folders-tab")?.focus(); } }} onClick={() => navigate(isCollections ? "/collections" : "/")} className={`rounded-md border px-4 py-2 text-sm font-medium ${collectionsTab === isCollections ? "border-accent bg-accent/10 text-accent" : "border-border text-muted hover:bg-hover"}`}>{t(isCollections ? "collections.title" : "pages.folders")}</button>)}
+        </div>
+        <div id="library-panel" role="tabpanel" aria-labelledby={collectionsTab ? "library-collections-tab" : "library-folders-tab"}>
+        {collectionsTab ? <CollectionsPage /> : <>
         <div className="sticky top-16 z-10 mb-4 bg-page">
           <div className={selectMode ? "flex flex-col items-stretch gap-4" : "flex flex-wrap items-center justify-between gap-4"}>
-            <h2 className="font-serif text-2xl font-semibold text-ink">{t("pages.yourLibrary")}</h2>
             <div className={selectMode ? "flex w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-3" : "flex flex-wrap items-center justify-end gap-3"}>
               {selectMode ? (
                 <div className="flex flex-1 flex-wrap items-center gap-2 text-sm">
@@ -437,6 +444,8 @@ export default function HomePage() {
         {showAllFiles && viewerIndex !== null && (
           <Viewer items={libraryMedia} startIndex={viewerIndex} onClose={() => setViewerIndex(null)} total={libraryMediaTotal} onRequestMore={loadMoreLibraryMedia} />
         )}
+        </>}
+        </div>
       </section>
     </div>
   );

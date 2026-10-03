@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TvSharingSettingsDto, TvSharingStatusDto } from '@memorylane/shared';
+import type { CollectionDto, TvSharingSettingsDto, TvSharingStatusDto } from '@memorylane/shared';
 import { api } from '../api/client';
-const settingsKey = (value: TvSharingSettingsDto) => JSON.stringify({ ...value, folders: [...value.folders].sort((a, b) => a.id - b.id) });
+const settingsKey = (value: TvSharingSettingsDto) => JSON.stringify({ ...value, folders: [...value.folders].sort((a, b) => a.id - b.id), collections: [...(value.collections ?? [])].sort((a,b)=>String(a).localeCompare(String(b))) });
 const input = 'rounded border border-border bg-surface px-2 py-1.5 text-ink';
 type Folder = Awaited<ReturnType<typeof api.tvSharing.folders>>[number];
 function FolderChoice({ folder, selected, onChange, disabled }: {
@@ -24,10 +24,12 @@ function FolderChoice({ folder, selected, onChange, disabled }: {
 export default function TvSharingSettings() {
     const { t } = useTranslation();
     const [status, setStatus] = useState<TvSharingStatusDto | null>(null), [settings, setSettings] = useState<TvSharingSettingsDto | null>(null), [folders, setFolders] = useState<Folder[]>([]), [busy, setBusy] = useState(false), [error, setError] = useState(''), [saved, setSaved] = useState(false);
-    useEffect(() => { let active = true; void Promise.all([api.tvSharing.get(), api.tvSharing.folders()]).then(([s, f]) => { if (active) {
+    const [collections, setCollections] = useState<CollectionDto[]>([]);
+    useEffect(() => { let active = true; void Promise.all([api.tvSharing.get(), api.tvSharing.folders(), api.collections.list()]).then(([s, f, c]) => { if (active) {
         setStatus(s);
         setSettings(s.settings);
         setFolders(f);
+        setCollections(c);
     } }).catch(e => { if (active)
         setError(String(e)); }); return () => { active = false; }; }, []);
     const dirty = !!settings && !!status && settingsKey(settings) !== settingsKey(status.settings);
@@ -60,6 +62,7 @@ export default function TvSharingSettings() {
  <label className="grid gap-1 text-sm">{t('tvSharing.cache')}<input className={`${input} w-24`} disabled={busy} type="number" min={64} max={10240} value={settings.cacheMiB} onChange={e => change({ cacheMiB: Number(e.target.value) })}/></label>
  </div>
  <fieldset disabled={busy}><legend className="font-medium">{t('tvSharing.folders')}</legend><p className="text-sm text-muted">{t('tvSharing.future')}</p><ul className="mt-2 max-h-72 overflow-auto">{folders.map(f => <FolderChoice key={f.id} folder={f} selected={settings.folders} onChange={v => change({ folders: v })} disabled={busy}/>)}</ul><p className="mt-2 text-sm">{t('tvSharing.selected', { count: settings.folders.length })}</p><button type="button" className="text-sm underline" onClick={() => change({ folders: [] })}>{t('tvSharing.clear')}</button></fieldset>
+ <fieldset disabled={busy}><legend className="font-medium">{t('collections.shared')}</legend><p className="text-sm text-muted">{t('collections.shareHelp')}</p><ul className="mt-2 max-h-60 overflow-auto">{collections.map(c=><li key={c.id}><label className="flex items-center gap-2 py-1"><input type="checkbox" checked={(settings.collections??[]).includes(c.id)} onChange={e=>change({collections:e.target.checked?[...(settings.collections??[]),c.id]:(settings.collections??[]).filter(id=>id!==c.id)})}/>{c.builtin?t('navigation.favorites'):c.name}</label></li>)}</ul><button type="button" className="mt-2 text-sm underline" onClick={()=>change({collections:[]})}>{t('collections.clearShared')}</button></fieldset>
  <details><summary>{t('tvSharing.advanced')}</summary><label className="mt-2 flex items-center gap-2 text-sm">{t('tvSharing.port')}<input className={`${input} w-24`} disabled={busy} type="number" min={1024} max={65535} value={settings.port} onChange={e => change({ port: Number(e.target.value) })}/></label></details>
  <div className="flex flex-wrap items-center gap-3">
  <button type="button" disabled={busy || !dirty} className={`rounded border px-4 py-2 font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed ${dirty ? 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60' : 'border-border bg-surface text-muted'}`} onClick={() => void save()}>{t(busy ? 'tvSharing.saving' : dirty ? 'tvSharing.saveChanges' : 'tvSharing.upToDate')}</button>
