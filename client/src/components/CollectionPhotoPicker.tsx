@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FolderOpen } from 'lucide-react';
+import FolderCard from './FolderCard';
 import { useTranslation } from 'react-i18next';
 import type { FolderDto, FolderBreadcrumbDto, MediaDto } from '@memorylane/shared';
 import { api } from '../api/client';
@@ -20,7 +20,7 @@ export default function CollectionPhotoPicker({ collectionId, onAdded, onClose }
   const [folderTotal, setFolderTotal] = useState(0);
   const [photos, setPhotos] = useState<MediaDto[]>([]);
   const [photoTotal, setPhotoTotal] = useState(0);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [added, setAdded] = useState<Set<number>>(new Set());
   const [recursive, setRecursive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -29,6 +29,7 @@ export default function CollectionPhotoPicker({ collectionId, onAdded, onClose }
   const [reload, setReload] = useState(0);
   const generation = useRef(0);
   const paging = useRef(false);
+  const saving = useRef(false);
 
   useEffect(() => {
     const version = ++generation.current;
@@ -72,19 +73,18 @@ export default function CollectionPhotoPicker({ collectionId, onAdded, onClose }
     finally { if (version === generation.current) { paging.current = false; setLoading(false); } }
   }
 
-  async function add(allInFolder: boolean) {
-    if (busy || (allInFolder ? folderId === null : selected.size === 0)) return;
+  async function add(mediaIds?: number[]) {
+    if (saving.current || (!mediaIds && folderId === null)) return;
+    saving.current = true;
     setBusy(true); setError(''); setMessage('');
-    const submitted = [...selected];
     try {
-      const result = await api.collections.add(collectionId, allInFolder
-        ? { folderId: folderId!, recursive } : { mediaIds: submitted });
-      // A folder snapshot does not discard selections made in other folders.
-      if (!allInFolder) setSelected(new Set());
+      const result = await api.collections.add(collectionId, mediaIds
+        ? { mediaIds } : { folderId: folderId!, recursive });
+      setAdded(old => new Set([...old, ...(mediaIds ?? photos.map(photo => photo.id))]));
       setMessage(t('collections.added', { count: result.added }));
       onAdded();
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
-    finally { setBusy(false); }
+    finally { saving.current = false; setBusy(false); }
   }
 
   const navigate = (id: number | null) => { if (!busy) { setFolderId(id); setMessage(''); } };
@@ -99,20 +99,16 @@ export default function CollectionPhotoPicker({ collectionId, onAdded, onClose }
     </nav>
     {error && <div role="alert" className="text-red-600">{error} <button className={button} disabled={busy || loading} onClick={() => setReload(v => v + 1)}>{t('common.retry')}</button></div>}
     {message && <p role="status" className="text-sm text-muted">{message}</p>}
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3">
-      <span className="text-sm">{t('collectionPicker.selected', { count: selected.size })}</span>
-      <button className={button} disabled={busy || !selected.size} onClick={() => void add(false)}>{t('collectionPicker.addSelected', { count: selected.size })}</button>
-      <button className={button} disabled={busy || !selected.size} onClick={() => setSelected(new Set())}>{t('collectionPicker.clear')}</button>
-    </div>
     <div className="max-h-[55vh] space-y-4 overflow-y-auto p-1">
-      {folders.length > 0 && <div className="grid grid-cols-2 gap-2 md:grid-cols-4">{folders.map(folder => <button key={folder.id} className={`${button} flex items-center gap-2 text-left`} disabled={busy} onClick={() => navigate(folder.id)}><FolderOpen size={18} className="shrink-0"/><span className="break-words">{folder.name}</span></button>)}</div>}
+      {folders.length > 0 && <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">{folders.map(folder => <FolderCard key={folder.id} folder={folder} disabled={busy} onOpen={() => navigate(folder.id)}/>)}</div>}
       {folders.length < folderTotal && <button className={button} disabled={busy || loading} onClick={() => void loadMore('folders')}>{t('collectionPicker.moreFolders')}</button>}
       {folderId !== null && <>
         <div className="flex flex-wrap items-center gap-2">
-          <button className={button} disabled={busy || !photos.length} onClick={() => setSelected(old => new Set([...old, ...photos.map(photo => photo.id)]))}>{t('collections.selectShown')}</button>
+
           <span className="text-sm text-muted">{t('common.photos', { count: photoTotal })}</span>
         </div>
-        <MediaGrid items={photos} onOpen={() => {}} selectable showFavorite={false} selectedIds={selected} onToggleSelect={photo => { if (!busy) setSelected(old => { const next = new Set(old); next.has(photo.id) ? next.delete(photo.id) : next.add(photo.id); return next; }); }}/>
+        <MediaGrid items={photos} showFavorite={false} disabled={busy} onOpen={index => { const photo = photos[index]; if (!added.has(photo.id)) void add([photo.id]); }} captions={Object.fromEntries([...added].map(id => [id, t('collectionPicker.saved')]))}/>
+
         {!loading && !photos.length && <p className="text-sm text-muted">{t('collectionPicker.noPhotos')}</p>}
         {photos.length < photoTotal && <button className={button} disabled={busy || loading} onClick={() => void loadMore('photos')}>{t('collections.more')}</button>}
       </>}
@@ -120,7 +116,7 @@ export default function CollectionPhotoPicker({ collectionId, onAdded, onClose }
       {!loading && folderId === null && !folders.length && <p className="text-sm text-muted">{t('coreBrowse.home.noFolders')}</p>}
     </div>
     {folderId !== null && !loading && !error && <div className="space-y-2 border-t border-border pt-3">
-      <div className="flex flex-wrap items-center gap-3"><button className={button} disabled={busy} onClick={() => void add(true)}>{t('collectionPicker.addFolder')}</button><label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={recursive} onChange={e => setRecursive(e.target.checked)}/>{t('collections.recursive')}</label></div>
+      <div className="flex flex-wrap items-center gap-3"><button className={button} disabled={busy} onClick={() => void add()}>{t('collectionPicker.addFolder')}</button><label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={recursive} onChange={e => setRecursive(e.target.checked)}/>{t('collections.recursive')}</label></div>
       <p className="text-sm text-muted">{t('collections.snapshot')}</p>
     </div>}
   </section>;

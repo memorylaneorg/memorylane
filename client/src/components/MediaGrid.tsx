@@ -17,6 +17,7 @@ interface MediaGridProps {
   // Small text chip per tile (e.g. a similarity score) keyed by media id.
   captions?: Record<number, string>;
   showFavorite?: boolean;
+  disabled?: boolean;
 }
 
 function badgeFor(media: MediaDto): string | null {
@@ -36,7 +37,7 @@ function badgeFor(media: MediaDto): string | null {
 // for browsing. A uniform grid reads left-to-right, top-to-bottom like every
 // other photo browser. Keeps the small rounded corners, border ring, and
 // hover lift/zoom from the life-archive-app-inspired styling.
-export default function MediaGrid({ items, onOpen, onOpenStack, selectable = false, selectedIds, onToggleSelect, captions, showFavorite = true }: MediaGridProps) {
+export default function MediaGrid({ items, onOpen, onOpenStack, selectable = false, selectedIds, onToggleSelect, captions, showFavorite = true, disabled = false }: MediaGridProps) {
   const { t } = useTranslation();
   // Optimistic per-thumbnail favorite overrides - `items` is an external prop
   // that won't reflect a toggle until the parent refetches, so track it locally.
@@ -63,6 +64,7 @@ export default function MediaGrid({ items, onOpen, onOpenStack, selectable = fal
         return (
           <button
             key={media.id}
+            disabled={disabled}
             onClick={() => (selectable ? onToggleSelect?.(media) : onOpen(i))}
             title={media.filename}
             aria-pressed={selectable ? isSelected : undefined}

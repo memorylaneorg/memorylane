@@ -18,7 +18,7 @@ function summaryFor(folder: FolderDto): string {
 // Mirrors life-archive-app's AlbumCard.tsx: cover image with a title overlaid
 // in a bottom gradient, hover lift + zoom, and a footer row with the item
 // count on one side and an arrow link on the other.
-export default function FolderCard({ folder }: { folder: FolderDto }) {
+export default function FolderCard({ folder, onOpen, disabled = false }: { folder: FolderDto; onOpen?: () => void; disabled?: boolean }) {
   const load = useCallback(() => api.folders.preview(folder.id).then((result) => result.items), [folder.id]);
   const { frame, onMouseEnter, onMouseLeave } = useHoverPreview(
     folder.thumbnailMediaId === null ? null : { id: folder.thumbnailMediaId, thumbnailVersion: folder.thumbnailVersion }, load,
@@ -27,6 +27,8 @@ export default function FolderCard({ folder }: { folder: FolderDto }) {
   return (
     <Link
       to={`/folder/${folder.id}`}
+      onClick={onOpen ? (event) => { event.preventDefault(); if (!disabled) onOpen(); } : undefined}
+      aria-disabled={disabled || undefined}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className="group block cursor-pointer overflow-hidden rounded-xl bg-surface ring-1 ring-border transition hover:-translate-y-0.5 hover:shadow-xl"

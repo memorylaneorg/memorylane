@@ -133,8 +133,9 @@ in `server/src/server.ts`.
   Normal source, deletion-mark and companion visibility rules apply.
 - Your Library → Folders / Collections tabs are in `HomePage.tsx`; `/collections`
   opens the Collections tab. `CollectionsPage.tsx` embeds `CollectionPhotoPicker.tsx`
-  to select individual photos across folders, with a separate explicit folder-snapshot
-  action. Selection persists across folder navigation; stack members are expanded.
+  to add individual photos immediately on click, with a separate explicit folder-snapshot
+  action. Collections open as folder-style cards; the picker reuses FolderCard thumbnails.
+  Successful additions persist when the picker closes; stack members are expanded.
   `CollectionPicker.tsx` also adds folder
   snapshots, selected photos, or a photo from Viewer → Info. Client batches explicit
   selections in groups of 1000. Repeating additions/removals is safe.

@@ -27,7 +27,10 @@ and French. Work and validation use external storage; no production catalog rese
 Your Library has Folders and Collections tabs. The Collections tab offers creation
 and opens each collection with an Add photos picker. The picker browses existing
 folders and displays individual photo thumbnails (including expanded stack members).
-Selections persist across folder navigation until explicitly added or cleared.
+Collections appear as folder-style cards; creating one opens its contents. The picker
+reuses normal FolderCard thumbnails. Clicking a photo immediately saves membership
+and shows Added after success; closing the picker does not discard additions. Failed
+requests remain retryable, and controls prevent duplicate in-flight submissions.
 A separate Add all photos from this folder action takes an indexed snapshot, with
 an explicit optional Include subfolders checkbox. Merely opening a folder adds nothing.
 Both photo and child-folder pages can be loaded incrementally. Favorites remains
