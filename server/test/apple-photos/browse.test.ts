@@ -54,6 +54,21 @@ describe("Apple Photos virtual browse", () => {
     } finally { db.close(); }
   });
 
+  it("flattens years and the library with stable pagination without preparing cloud assets", async () => {
+    const db=await createTestDb();
+    try {
+      const root=Number(db.prepare("INSERT INTO scan_roots(path,kind) VALUES('/All.photoslibrary','apple-photos')").run().lastInsertRowid);
+      const insert=db.prepare("INSERT INTO apple_photos_assets(scan_root_id,uuid,original_filename,catalog_date) VALUES(?,?,?,?)");
+      insert.run(root,"jan","jan.jpg","2021-01-01");insert.run(root,"dec","dec.jpg","2021-12-01");insert.run(root,"older","older.jpg","2020-06-01");
+      const first=browseApplePhotos(db,root,"2021","all",0,1);
+      expect(first.groups).toEqual([]);expect(first.total).toBe(2);expect(first.items.map(row=>row.uuid)).toEqual(["dec"]);
+      expect(browseApplePhotos(db,root,"2021","all",1,1).items.map(row=>row.uuid)).toEqual(["jan"]);
+      expect(browseApplePhotos(db,root,"all",null,0,10).total).toBe(3);
+      expect(db.prepare("SELECT COUNT(*) n FROM media").get()).toEqual({n:0});
+      expect(db.prepare("SELECT COUNT(*) n FROM apple_photo_preparation").get()).toEqual({n:0});
+    } finally {db.close();}
+  });
+
   it("hides marked indexed assets while retaining catalog-only assets", async () => {
     const db = await createTestDb();
     try {

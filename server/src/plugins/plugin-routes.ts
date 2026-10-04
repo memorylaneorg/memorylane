@@ -199,7 +199,7 @@ export async function registerPluginRoutes(app: FastifyInstance, ctx: AppContext
     if (!root || !root.enabled) return reply.code(404).send({ error: "Apple Photos root not found" });
     const parsed = z.object({
       year: z.union([z.literal("all"), z.literal("unknown"), z.string().regex(/^\d{4}$/)]).optional(),
-      month: z.string().regex(/^(0[1-9]|1[0-2])$/).optional(),
+      month: z.string().regex(/^(all|0[1-9]|1[0-2])$/).optional(),
     }).strict().safeParse(request.query);
     if (!parsed.success || (parsed.data.month && (!parsed.data.year || parsed.data.year === "all" || parsed.data.year === "unknown"))) {
       return reply.code(400).send({ error: "Invalid preview query" });
@@ -215,7 +215,7 @@ export async function registerPluginRoutes(app: FastifyInstance, ctx: AppContext
     if (!root || !root.enabled) return reply.code(404).send({ error: "Apple Photos root not found" });
     const parsed = z.object({
       year: z.union([z.literal("all"), z.literal("unknown"), z.string().regex(/^\d{4}$/)]).optional(),
-      month: z.string().regex(/^(0[1-9]|1[0-2])$/).optional(),
+      month: z.string().regex(/^(all|0[1-9]|1[0-2])$/).optional(),
       offset: z.coerce.number().int().min(0).default(0),
       limit: z.coerce.number().int().min(1).max(200).default(100),
     }).strict().safeParse(request.query);

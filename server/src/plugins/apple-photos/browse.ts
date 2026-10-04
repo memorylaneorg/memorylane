@@ -44,7 +44,7 @@ export function previewApplePhotos(
   else if (year && year !== "all") {
     dateFilter = ` AND substr(${DATE}, 1, 4) = ?`;
     bindings.push(year);
-    if (month) {
+    if (month && month !== "all") {
       dateFilter += ` AND substr(${DATE}, 6, 2) = ?`;
       bindings.push(month);
     }
@@ -76,8 +76,12 @@ export function browseApplePhotos(
   const bindings: (string | number)[] = [rootId];
   if (year === "unknown") filter = ` AND ${DATE} IS NULL`;
   else if (year !== "all") {
-    filter = ` AND substr(${DATE}, 1, 4) = ? AND substr(${DATE}, 6, 2) = ?`;
-    bindings.push(year, month!);
+    filter = ` AND substr(${DATE}, 1, 4) = ?`;
+    bindings.push(year!);
+    if (month && month !== "all") {
+      filter += ` AND substr(${DATE}, 6, 2) = ?`;
+      bindings.push(month);
+    }
   }
   const total = (db.prepare(`SELECT COUNT(*) AS c ${FROM}${filter}`).get(...bindings) as { c: number }).c;
   const rows = db.prepare(`SELECT a.uuid, a.original_filename AS filename, ${DATE} AS date,
