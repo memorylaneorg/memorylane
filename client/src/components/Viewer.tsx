@@ -454,7 +454,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
         )}
 
         {current.mediaType === 'raw' && previewState && previewState !== 'ready' && <div role="status" className="absolute bottom-20 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-black/75 px-4 py-2 text-sm text-white">
-          {t(previewState === 'failed' ? 'previewUpgrade.failed' : previewState === 'limited' ? 'previewUpgrade.limited' : 'previewUpgrade.running')}
+          {t(previewState === 'blocked' ? 'previewUpgrade.blocked' : previewState === 'failed' ? 'previewUpgrade.failed' : previewState === 'limited' ? 'previewUpgrade.limited' : 'previewUpgrade.running')}
           {(previewState === 'failed' || previewState === 'limited') && <button className="ml-3 underline" onClick={() => void api.media.retryPreview(current.id).then(() => setPreviewRetry(v => v + 1)).catch(() => setPreviewState('failed'))}>{t('common.retry')}</button>}
         </div>}
         <OriginalUnavailableNotice fallback={fallback} sourceKind={current.sourceKind} />

@@ -8,7 +8,10 @@ import { generatePreviewFromBuffer } from './thumbnail-generator.js';
 process.once('disconnect', () => process.exit(1));
 process.once('message', async (job: {source: string; destination: string; orientation: number | null; width: number; height: number}) => {
   const decoded = job.destination + '.decoded.jpg';
+  let sourceReadable = false;
   try {
+    await fs.access(job.source, fs.constants.R_OK);
+    sourceReadable = true;
     await checkExifToolAvailable(pino({ level: 'silent' }));
     const embedded = await extractLargestEmbeddedPreview(job.source);
     let area = 0;
@@ -43,6 +46,6 @@ process.once('message', async (job: {source: string; destination: string; orient
     }
     if (!area) throw Error('No usable preview');
     process.send?.({ state: sufficient ? 'ready' : 'limited' });
-  } catch { process.send?.({ state: 'failed' }); }
+  } catch (error) { process.send?.({ state: 'failed', errorCode: sourceReadable ? 'decode' : 'source', errorMessage: (error instanceof Error ? error.message : String(error)).slice(0, 1000) }); }
   finally { await fs.rm(decoded, { force: true }).catch(() => {}); await shutdownExifTool(); process.exit(0); }
 });
