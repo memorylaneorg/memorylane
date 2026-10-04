@@ -367,3 +367,7 @@ are stored in the ignored test-library folder.
 - DLNA preview progress/failure counts cover only currently shared eligible RAWs (including
   not-yet-admitted work); history from removed shares is retained but excluded. Storage usage
   remains the actual total retained preview bytes.
+- Optional `momentsHighlights` TV setting exposes a library-wide, flat dynamic collection using
+  Balanced detection and up to five TV-eligible samples per moment. `moments/catalog.ts` shares
+  grouping inputs/sampling with web Moments; `moments/highlights.ts` caches stable membership
+  with 30-second refresh and catalog revision updates. Core also handles aliases forwarded by older collection-capable TV modules. Highlights RAW upgrades are prepared in bounded background batches when improvements are enabled; TV requests retain higher priority.

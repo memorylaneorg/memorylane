@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createTestDb, seedScanRoot, seedFolder, seedMedia } from '../helpers/db.js';
 import { TvSharingBroker, TV_PLUGIN_ID } from '../../src/tv-sharing/broker.js';
 import type { AppPaths } from '../../src/config/paths.js';
@@ -108,4 +108,55 @@ it('prunes deleted TV selections and lists only selected names without counting 
   db.exec('DROP TABLE collection_media; DROP TABLE media_engagement;');
   expect(await broker.call(TV_PLUGIN_ID,'tv.collections',{})).toMatchObject({items:[{id:b.id,name:'Keep'}]});
  }finally{db.close();}
+});
+
+it('offers opt-in Moments highlights independently, with bounded samples and optional background upgrades',async()=>{
+ const db=await createTestDb();try{
+  const root=seedScanRoot(db),folder=seedFolder(db,root,'/library');
+  const exif=db.prepare("INSERT INTO media_exif(media_id,captured_at_precise,tags_json,exiftool_version) VALUES (?,?,'{}','test')");
+  for(let i=0;i<20;i++) exif.run(seedMedia(db,folder,root,{media_type:'raw'}),`2024-05-01T${String(i).padStart(2,'0')}:00:00`);
+  const enqueue=vi.fn();
+  const broker=new TvSharingBroker(db,{} as AppPaths,()=>true,{enqueue,reconcile:vi.fn()} as any);
+  expect(broker.settings().momentsHighlights).toBe(false);
+  broker.save({enabled:true,address:'192.168.1.2',momentsHighlights:true});
+  expect(await broker.call(TV_PLUGIN_ID,'tv.collections',{})).toMatchObject({items:[{id:'moments-highlights',name:'Moments highlights'}]});
+  const args={collectionId:'moments-highlights',start:0,count:100};
+  const page=await broker.call(TV_PLUGIN_ID,'tv.collection',args) as {total:number;items:{id:number}[]};
+  expect(await broker.call(TV_PLUGIN_ID,'tv.browse',{objectId:'c:moments-highlights',flag:'BrowseDirectChildren',start:0,count:100})).toMatchObject({total:5,items:page.items.map(i=>expect.objectContaining({id:`c:moments-highlights:p:${i.id}`}))});
+  expect(page.total).toBe(5);expect(new Set(page.items.map(i=>i.id)).size).toBe(5);
+  expect((await broker.call(TV_PLUGIN_ID,'tv.collection',{...args,start:2,count:2}) as any).items).toEqual(page.items.slice(2,4));
+  const photo=page.items[0].id;
+  expect(broker.allowedMedia(photo,'moments-highlights')).toBeTruthy();
+  broker.preparePreviews();expect(enqueue).not.toHaveBeenCalled();
+  broker.setPreviewProcessing(true); broker.preparePreviews();
+  expect(enqueue.mock.calls.map(([media])=>media.id).sort()).toEqual(page.items.map(i=>i.id).sort());
+  expect(db.prepare('SELECT COUNT(*) n FROM preview_upgrades').get()).toEqual({n:0});
+  db.prepare('INSERT INTO deletion_marks(media_id) VALUES(?)').run(photo);
+  expect(broker.allowedMedia(photo,'moments-highlights')).toBeUndefined();
+  broker.save({momentsHighlights:false,folders:[{id:folder,recursive:true}]});
+  await expect(broker.call(TV_PLUGIN_ID,'tv.collection',args)).rejects.toThrow('Not shared');
+  await expect(broker.call(TV_PLUGIN_ID,'tv.image',{id:`c:moments-highlights:p:${photo}`,profile:'display'})).rejects.toThrow('Not shared');
+ }finally{db.close();}
+});
+
+it('refreshes highlights and advances catalog revision after new EXIF moments, without rescanning unchanged data',async()=>{
+ const db=await createTestDb();const clock=vi.spyOn(Date,'now');let now=100000;clock.mockImplementation(()=>now);
+ try{
+  const root=seedScanRoot(db),folder=seedFolder(db,root,'/library');
+  const exif=db.prepare("INSERT INTO media_exif(media_id,captured_at_precise,tags_json,exiftool_version) VALUES (?,?,'{}','test')");
+  const add=(day:string)=>{for(let i=0;i<10;i++)exif.run(seedMedia(db,folder,root),`${day}T12:${String(i).padStart(2,'0')}:00`);};
+  add('2024-01-01');
+  const broker=new TvSharingBroker(db,{} as AppPaths,()=>true);
+  broker.save({enabled:true,address:'192.168.1.2',momentsHighlights:true});
+  const get=()=>broker.call(TV_PLUGIN_ID,'tv.collection',{collectionId:'moments-highlights',start:0,count:100}) as Promise<{total:number;updateId:number}>;
+  expect((await get()).total).toBe(5);
+  add('2024-02-01');
+  const before=await get();expect(before.total).toBe(5);
+  now+=31000;const after=await get();expect(after.total).toBe(10);expect(after.updateId).toBeGreaterThan(before.updateId);
+  const prepare=vi.spyOn(db,'prepare');now+=31000;
+  expect((await get()).updateId).toBe(after.updateId);
+  expect(prepare.mock.calls.some(([sql])=>String(sql).includes('NTILE'))).toBe(false);
+  broker.save({momentsHighlights:false,folders:[{id:folder,recursive:true}]});
+  expect((await broker.call(TV_PLUGIN_ID,'tv.config',{}) as {updateId:number}).updateId).toBeGreaterThan(after.updateId);
+ }finally{clock.mockRestore();db.close();}
 });

@@ -93,3 +93,24 @@ including Favorites membership changes. Counts include photos awaiting admission
 queue; obsolete fingerprints count as pending. Historical results for removed shares remain
 stored for reuse if re-shared, but do not inflate current progress. Storage usage still reports
 all retained RAW preview files because those continue to occupy disk space.
+
+### Moments highlights
+
+TV settings can opt into a library-wide Moments highlights collection, independently of folder
+and collection selections. It is off by default. It reuses Balanced EXIF moment detection and
+selects up to five chronologically distributed TV-eligible photos per moment. Photos use dated
+titles for chronological ordering; videos, Apple Photos and unavailable/marked media are excluded.
+The TV plugin maps the `moments-highlights` collection identifier to scoped image aliases.
+Core also accepts the scoped aliases forwarded by older collection-capable TV modules, so
+existing installations can use Highlights without replacing the installed module.
+
+Highlights refresh within 30 seconds. A library/EXIF fingerprint prevents repeated sampling of
+unchanged catalogs, and refreshed membership advances the DLNA catalog revision. Delivery always
+rechecks current source eligibility and whether Highlights remains enabled. Existing web Moments
+sampling and manual refresh behavior are unchanged.
+
+When Highlights and preview improvements are enabled, missing/stale RAW highlights are prepared
+in background batches using the existing bounded queue. Valid completed previews are reused.
+TV image requests retain higher priority. Pause, the storage budget, and removal from all shares
+apply as usual. Progress includes all current RAW highlights, including work awaiting admission.
+New highlights are picked up by the periodic preparation pass after membership refresh.
