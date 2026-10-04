@@ -25,7 +25,15 @@ export default function MomentDetailPage() {
     {!moment && !error && <p className="mt-4 text-sm text-muted">{t("common.loading")}</p>}
     {moment && <>
       <header className="mb-7 border-b border-border pb-5"><h1 className="font-serif text-3xl font-semibold text-ink">{label}</h1><p className="mt-1 text-sm text-muted">{t("moments.multiSummary", { days: moment.calendarDays, active: moment.activeDays.length, count: moment.mediaCount })}</p></header>
-      <div className="space-y-4">{moment.days.map((day) => <section key={day.date} className="grid gap-4 rounded-xl border border-border bg-surface p-4 lg:grid-cols-[15rem_minmax(0,1fr)_auto] lg:items-center"><div><h2 className="font-semibold text-ink">{dateLabel(day.date)}</h2><p className="text-sm text-muted">{t("moments.items", { count: day.mediaCount })}</p></div><Link to={`/moments/day/${day.date}?detection=${detection}`} className="grid grid-cols-5 gap-2">{day.samples.map((media) => <img key={media.id} src={api.media.thumbnailUrl(media.id, media.thumbnailVersion)} alt="" className="aspect-[4/3] min-w-0 rounded-md object-cover" />)}</Link><Link to={`/moments/day/${day.date}?detection=${detection}`} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-hover">{t("moments.view")}</Link></section>)}</div>
+      <div className="relative space-y-7 border-l border-border pl-6 sm:pl-10">{moment.days.map((day) => {
+        const href = `/moments/day/${day.date}?detection=${detection}&parentStart=${start}&parentEnd=${end}`;
+        return <section key={day.date} className="relative grid gap-3 lg:grid-cols-[14rem_minmax(0,1fr)_auto] lg:items-center">
+          <span className="absolute -left-[29px] top-2.5 size-2 rounded-full bg-accent/65 sm:-left-[45px]" />
+          <div><h2 className="text-lg font-semibold text-ink">{dateLabel(day.date)}</h2><p className="text-sm text-muted">{t("moments.items", { count: day.mediaCount })}</p></div>
+          <Link to={href} className="grid grid-cols-5 gap-2">{day.samples.map((media) => <img key={media.id} src={api.media.thumbnailUrl(media.id, media.thumbnailVersion)} alt="" className="aspect-[4/3] min-w-0 rounded-md bg-media object-cover ring-1 ring-border" />)}</Link>
+          <Link to={href} className="inline-flex w-fit rounded-full border border-border px-4 py-2 text-sm font-medium text-ink hover:bg-hover">{t("moments.view")}</Link>
+        </section>;
+      })}</div>
     </>}
   </div>;
 }

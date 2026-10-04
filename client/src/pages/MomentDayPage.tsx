@@ -36,6 +36,8 @@ export default function MomentDayPage() {
   const { date = "" } = useParams<{ date: string }>();
   const [params] = useSearchParams();
   const detection = params.get("detection");
+  const parentStart = params.get("parentStart") ?? "";
+  const parentEnd = params.get("parentEnd") ?? "";
   const [items, setItems] = useState<MediaDto[] | null>(null);
   const [total, setTotal] = useState(0);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -75,12 +77,16 @@ export default function MomentDayPage() {
   if (!valid) return <Navigate to="/moments" replace />;
 
   const label = new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
+  const validParent = /^\d{4}-\d{2}-\d{2}$/.test(parentStart) && /^\d{4}-\d{2}-\d{2}$/.test(parentEnd);
+  const parentLabel = validParent ? `${new Intl.DateTimeFormat(undefined, { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${parentStart}T00:00:00Z`))} – ${new Intl.DateTimeFormat(undefined, { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${parentEnd}T00:00:00Z`))}` : null;
+  const momentsHref = `/moments${detection && detection !== "balanced" ? `?detection=${detection}` : ""}`;
+  const parentHref = validParent ? `/moments/${parentStart}/${parentEnd}${detection ? `?detection=${detection}` : ""}` : null;
   const openMedia = (media: MediaDto) => setViewerIndex(items?.findIndex((candidate) => candidate.id === media.id) ?? null);
 
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <nav className="mb-2 text-sm text-muted" aria-label={t("moments.title")}><Link to={`/moments${detection && detection !== "balanced" ? `?detection=${detection}` : ""}`} className="hover:text-ink">{t("moments.title")}</Link><span> / {label}</span></nav>
+        <nav className="mb-2 text-sm text-muted" aria-label={t("moments.title")}><Link to={momentsHref} className="hover:text-ink">{t("moments.title")}</Link>{parentHref && parentLabel && <span> / <Link to={parentHref} className="hover:text-ink">{parentLabel}</Link></span>}<span> / {label}</span></nav>
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <h1 className="font-serif text-3xl font-semibold text-ink">{label}</h1>
