@@ -16,6 +16,7 @@ import type { PluginUpdateCoordinator } from "./plugin-platform/update-coordinat
 // Central set of app-wide singletons, built once at startup and passed to every
 // route module. Keeps routes free of import-order/singleton-init footguns.
 export interface AppContext {
+  applePreparation?: import("./plugins/apple-photos/preparation.js").ApplePhotoPreparation;
   previewUpgrades?: import("./media/preview-upgrades.js").PreviewUpgrades;
   db: Database.Database;
   paths: AppPaths;

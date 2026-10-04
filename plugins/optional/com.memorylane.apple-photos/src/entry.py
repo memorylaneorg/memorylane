@@ -1,17 +1,31 @@
 import hmac
 import json
 import os
+import signal
 import subprocess
+import sys
 import threading
 from glob import glob
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from memorylane_photos.catalog import load_catalog, map_photo, validate_library
+from memorylane_photos.prepare import CAPABILITY, PreparationError, PreparationManager, worker_main
+
+# A frozen executable re-enters this file; branch before starting the service.
+if __name__ == "__main__" and len(sys.argv) == 5 and sys.argv[1] == "--prepare-one":
+    raise SystemExit(worker_main(*sys.argv[2:]))
+
+command = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, str(Path(__file__).resolve())]
+preparation = PreparationManager(Path(os.environ["MEMORYLANE_PLUGIN_DATA_DIR"]) / "preparation", command)
 
 HOST = "127.0.0.1"
 PORT = int(os.environ["MEMORYLANE_PLUGIN_PORT"])
 TOKEN = os.environ["MEMORYLANE_PLUGIN_TOKEN"]
+
+def shutdown(*_):
+    preparation.close()
+    os._exit(0)
 
 class Handler(BaseHTTPRequestHandler):
     catalog_cache = {}
@@ -28,7 +42,7 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(length) or b"{}")
     def do_GET(self):
         if not self.authorized(): return
-        if self.path == "/health": return self.send_json(200,{"status":"ready","pluginId":os.environ["MEMORYLANE_PLUGIN_ID"],"version":os.environ["MEMORYLANE_PLUGIN_VERSION"],"pluginApi":int(os.environ["MEMORYLANE_PLUGIN_API"])})
+        if self.path == "/health": return self.send_json(200,{"status":"ready","pluginId":os.environ["MEMORYLANE_PLUGIN_ID"],"version":os.environ["MEMORYLANE_PLUGIN_VERSION"],"pluginApi":int(os.environ["MEMORYLANE_PLUGIN_API"]),"preparation":CAPABILITY})
         if self.path == "/libraries":
             items=[]
             for raw in glob(str(Path.home()/"Pictures"/"*.photoslibrary")):
@@ -40,6 +54,11 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authorized(): return
         try:
             body=self.body()
+            if self.path == "/prepare":
+                return self.send_json(200, preparation.prepare(body["job_id"], body["library_path"], body["uuid"]))
+            if self.path == "/prepare/cancel":
+                preparation.cancel(body["job_id"])
+                return self.send_json(200, {"ok": True})
             if self.path == "/catalog":
                 library=validate_library(body["library_path"]); cursor=int(body.get("cursor",0)); limit=int(body.get("limit",200)); key=str(library)
                 if cursor == 0 or key not in self.catalog_cache: self.catalog_cache[key]=load_catalog(library)
@@ -54,10 +73,13 @@ class Handler(BaseHTTPRequestHandler):
                 uuid=str(body["uuid"]); script='on run argv\nset targetId to item 1 of argv\ntell application "Photos"\nactivate\nspotlight media item id targetId\nend tell\nend run'
                 subprocess.run(["osascript","-e",script,uuid],check=True,capture_output=True,text=True,timeout=15); return self.send_json(200,{"ok":True})
             if self.path == "/shutdown":
-                threading.Timer(0.1,lambda:os._exit(0)).start(); return self.send_json(200,{"ok":True})
+                threading.Timer(0.1,shutdown).start(); return self.send_json(200,{"ok":True})
             self.send_json(404,{"error":"Not found"})
+        except PreparationError as error: self.send_json(503,{"error":str(error),"code":error.code})
         except Exception as error: self.send_json(503,{"error":str(error)})
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGINT, shutdown)
     import osxphotos
     ThreadingHTTPServer((HOST,PORT),Handler).serve_forever()

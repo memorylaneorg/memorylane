@@ -4,7 +4,7 @@ import type { AppContext } from '../context.js';
 import { TV_PLUGIN_ID, TvSettingsSchema, TvSharingBroker } from './broker.js';
 export async function registerTvSharingRoutes(app: FastifyInstance, ctx: AppContext) {
     const manager = ctx.pluginManager;
-    const broker = new TvSharingBroker(ctx.db, ctx.paths, () => !!manager?.isEnabled(TV_PLUGIN_ID), ctx.previewUpgrades);
+    const broker = new TvSharingBroker(ctx.db, ctx.paths, () => !!manager?.isEnabled(TV_PLUGIN_ID), ctx.previewUpgrades, ctx.applePreparation);
     ctx.previewUpgrades?.setEligibility(id => !!broker.allowedMedia(id));
     ctx.previewUpgrades?.setEnabled(() => !!manager?.isEnabled(TV_PLUGIN_ID) && broker.settings().enabled && broker.settings().upgradePreviews);
     manager?.moduleHost?.setCoreHandler?.((id, method, payload) => broker.call(id, method, payload));

@@ -9,6 +9,20 @@ import type { AppPaths } from "../../src/config/paths.js";
 const logger = { info() {}, warn() {}, error() {}, debug() {} } as unknown as import("pino").Logger;
 
 describe("Photos library scanner boundary", () => {
+  it("skips AppleDouble files before metadata/thumbnail work and preserves source bytes", async () => {
+    const db = await createTestDb();
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "memorylane-sidecar-scan-"));
+    const names = ["._photo.jpg", "._photo.RAF", "._movie.mp4"];
+    const bytes = Buffer.from("0005160700020000", "hex");
+    for (const name of names) fs.writeFileSync(path.join(root, name), bytes);
+    db.prepare("INSERT INTO scan_roots(path, enabled) VALUES (?,1)").run(root);
+    try {
+      await new ScannerService(db, {dataDir:root,thumbnailsDir:path.join(root,"thumbs"),previewsDir:path.join(root,"previews")} as AppPaths, logger).runScan("manual");
+      expect(db.prepare("SELECT COUNT(*) c FROM media").get()).toEqual({c:0});
+      expect(db.prepare("SELECT files_scanned,thumbnails_queued,error_count FROM scan_runs").get()).toEqual({files_scanned:0,thumbnails_queued:0,error_count:0});
+      for (const name of names) expect(fs.readFileSync(path.join(root,name))).toEqual(bytes);
+    } finally {db.close();fs.rmSync(root,{recursive:true,force:true});}
+  });
   it("never indexes files inside a MemoryLane trash folder", async () => {
     const db = await createTestDb();
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "memorylane-trash-scan-"));

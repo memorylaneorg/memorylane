@@ -52,6 +52,9 @@ in `server/src/server.ts`.
   `server/src/scanner/fingerprint.ts` uses size + rounded mtime for change detection,
   **not a content hash or move-stable identity**. `server/src/scanner/folder-repo.ts`
   owns folder persistence.
+- Folder scanning skips macOS AppleDouble `._*` sidecars before indexing or thumbnail
+  work. Migration 042 retires existing filesystem sidecar rows as missing, retaining
+  their catalog associations and leaving all source files untouched.
 - Unseen records in successfully covered scan roots are marked `missing`; a normal
   scan does not simply delete all old rows. A renamed path can create new records
   while the old ones become missing. Removing a scan root is different: its route
@@ -152,8 +155,17 @@ in `server/src/server.ts`.
   the originating collection even if another share also grants the photo. Renaming
   retains links; deleting a collection prunes its saved selection on settings load.
 - Collection sharing includes future explicit additions (and future favorite stars),
-  independently of folder shares. TV still excludes video, Apple Photos, unavailable
-  sources and marked photos. See `docs/architecture/collections.md`.
+  independently of folder shares. TV excludes video, unavailable sources and marked photos. Prepared Apple Photos
+  stills are eligible only through selected collections/Favorites; Apple folders
+  and Moments never expose or automatically download cloud images. See `docs/architecture/collections.md`.
+
+### Folder selection
+
+- Library Add folder offers a Browse dialog via `client/src/components/FolderPicker.tsx`.
+  Authenticated `/api/scan-roots/directories` lists server-side directories only,
+  with bounded pages, Home/Computer/mounted-drive shortcuts and permission errors.
+  Choosing fills the path; Add folder still confirms addition. Browsing does not scan,
+  upload or mutate originals. Manual paths remain available for network locations.
 
 ### Photo viewer loading
 
@@ -371,3 +383,22 @@ are stored in the ignored test-library folder.
   Balanced detection and up to five TV-eligible samples per moment. `moments/catalog.ts` shares
   grouping inputs/sampling with web Moments; `moments/highlights.ts` caches stable membership
   with 30-second refresh and catalog revision updates. Core also handles aliases forwarded by older collection-capable TV modules. Highlights RAW upgrades are prepared in bounded background batches when improvements are enabled; TV requests retain higher priority.
+
+### Explicit Apple Photos viewing copies
+
+- Adding Apple still photos to Favorites or collections queues local viewing copies,
+  independently of DLNA. Folder snapshots queue newly added indexed Apple photos.
+  Catalog sync, imported Favorites and Moments never enqueue downloads.
+- Core queue: `server/src/plugins/apple-photos/preparation.ts`, migration 041.
+  Settings/routes: `preparation-routes.ts`; cloud identity: `selection.ts`.
+  Separate 2048 MiB cache, one job at a time, 120-second deadline, 32 MiB output cap,
+  512 MiB disk reserve; explicit retries, persistent pause and clear-without-refill.
+- Optional helper `python/memorylane_photos/prepare.py` requests a PhotoKit viewing
+  image for one UUID in the System Photo Library. Requires updated helper capability
+  version 1 and macOS Photos permission. Explicit preparation may prompt for access;
+  catalog sync cannot. PhotoKit's own iCloud cache is outside core's budget.
+- Prepared copies remain selection/source/visibility gated for web and DLNA. DLNA
+  admits them only through shared collection/Favorites aliases, never Moments.
+  `ApplePhotoPreparationCard.tsx` exposes progress/storage controls and download
+  notice; Apple library tiles allow cloud stills to be explicitly selected.
+  See `docs/architecture/collections.md` for lifecycle and native QA limits.

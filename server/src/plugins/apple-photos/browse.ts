@@ -1,4 +1,6 @@
 import type Database from "better-sqlite3";
+import path from "node:path";
+import { classifyExtension } from "../../scanner/media-types.js";
 
 export interface AppleBrowseGroup {
   key: string;
@@ -16,6 +18,7 @@ export interface AppleBrowseItem {
   mediaId: number | null;
   thumbnailVersion: number;
   available: boolean;
+  mediaType: "image" | "raw" | "video" | null;
 }
 
 export interface AppleBrowseResult {
@@ -41,7 +44,7 @@ export function previewApplePhotos(
   else if (year && year !== "all") {
     dateFilter = ` AND substr(${DATE}, 1, 4) = ?`;
     bindings.push(year);
-    if (month) {
+    if (month && month !== "all") {
       dateFilter += ` AND substr(${DATE}, 6, 2) = ?`;
       bindings.push(month);
     }
@@ -54,6 +57,7 @@ export function previewApplePhotos(
 
 export function browseApplePhotos(
   db: Database.Database, rootId: number, year: string | null, month: string | null, offset: number, limit: number,
+  prepared: (id: number) => boolean = () => false,
 ): AppleBrowseResult {
   if (year === null || (year !== "all" && year !== "unknown" && month === null)) {
     const expression = year === null ? `COALESCE(substr(${DATE}, 1, 4), 'unknown')` : `substr(${DATE}, 6, 2)`;
@@ -72,15 +76,23 @@ export function browseApplePhotos(
   const bindings: (string | number)[] = [rootId];
   if (year === "unknown") filter = ` AND ${DATE} IS NULL`;
   else if (year !== "all") {
-    filter = ` AND substr(${DATE}, 1, 4) = ? AND substr(${DATE}, 6, 2) = ?`;
-    bindings.push(year, month!);
+    filter = ` AND substr(${DATE}, 1, 4) = ?`;
+    bindings.push(year!);
+    if (month && month !== "all") {
+      filter += ` AND substr(${DATE}, 6, 2) = ?`;
+      bindings.push(month);
+    }
   }
   const total = (db.prepare(`SELECT COUNT(*) AS c ${FROM}${filter}`).get(...bindings) as { c: number }).c;
   const rows = db.prepare(`SELECT a.uuid, a.original_filename AS filename, ${DATE} AS date,
       COALESCE(m.gps_lat, a.catalog_gps_lat) AS latitude,
       COALESCE(m.gps_lon, a.catalog_gps_lon) AS longitude,
-      m.id AS mediaId, COALESCE(m.thumbnail_version, 0) AS thumbnailVersion
+      m.id AS mediaId, COALESCE(m.thumbnail_version, 0) AS thumbnailVersion,
+      (a.original_path IS NOT NULL OR a.derivative_path IS NOT NULL OR m.thumbnail_status='done') AS localAvailable
       ${FROM}${filter} ORDER BY date DESC, a.uuid LIMIT ? OFFSET ?`)
-    .all(...bindings, limit, offset) as Omit<AppleBrowseItem, "available">[];
-  return { groups: [], items: rows.map((row) => ({ ...row, available: row.mediaId !== null })), total, offset, limit };
+    .all(...bindings, limit, offset) as (Omit<AppleBrowseItem, "available" | "mediaType"> & {localAvailable:number})[];
+  return { groups: [], items: rows.map(({localAvailable,...row}) => ({ ...row,
+    mediaType: classifyExtension(path.extname(row.filename ?? "").slice(1).toLowerCase()),
+    available: row.mediaId !== null && (!!localAvailable || prepared(row.mediaId)),
+  })), total, offset, limit };
 }

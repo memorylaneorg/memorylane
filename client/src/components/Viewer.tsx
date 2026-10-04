@@ -429,7 +429,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
           <CollectionPicker key={current.id} mediaIds={[current.id]} iconOnly />
           {aiSearchAvailable && (
             <button
-              className={controlButtonClass}
+              className={`grid place-items-center ${controlButtonClass}`}
               onClick={() => {
                 onClose();
                 navigate(`/similar/${current.id}`);

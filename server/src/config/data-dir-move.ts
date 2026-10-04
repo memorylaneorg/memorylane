@@ -56,6 +56,8 @@ export async function moveDataDir(
       const src = paths[key] as string;
       if (fs.existsSync(src)) fs.cpSync(src, path.join(resolved, path.basename(src)), { recursive: true });
     }
+    const appleCache=path.join(paths.dataDir,'apple-photos-cache');
+    if(fs.existsSync(appleCache)) fs.cpSync(appleCache,path.join(resolved,'apple-photos-cache'),{recursive:true});
     const tvCache = path.join(paths.dataDir, "tv-sharing-cache");
     if (fs.existsSync(tvCache)) fs.cpSync(tvCache, path.join(resolved, "tv-sharing-cache"), { recursive: true });
     fs.mkdirSync(path.join(resolved, "logs"), { recursive: true });

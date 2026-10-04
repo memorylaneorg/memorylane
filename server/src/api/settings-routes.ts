@@ -74,14 +74,19 @@ export async function registerSettingsRoutes(app: FastifyInstance, ctx: AppConte
     const parsed = moveDataDirRequestSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
     if (ctx.scanner.isRunning()) return reply.code(409).send({ error: "Wait for the running scan to finish first" });
+    let releasePreparation: (() => void) | undefined;
     try {
       const { copiedBytes } = await moveDataDir(ctx.db, ctx.paths, parsed.data.path, app.log, {
-        pause: () => ctx.analysisWorker.stop(),
+        pause: async () => {
+          await ctx.analysisWorker.stop();
+          releasePreparation = await ctx.applePreparation?.pauseForMove();
+        },
         resume: () => ctx.analysisWorker.start(),
       });
       const result: MoveDataDirResultDto = { from: ctx.paths.dataDir, to: parsed.data.path, copiedBytes, restartRequired: true };
       return reply.send(result);
     } catch (err) {
+      releasePreparation?.();
       if (err instanceof DataDirMoveError) return reply.code(err.status).send({ error: err.message });
       throw err;
     }

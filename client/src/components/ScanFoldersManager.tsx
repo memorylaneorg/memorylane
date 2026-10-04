@@ -1,3 +1,4 @@
+import FolderPicker from "./FolderPicker";
 import { useEffect, useRef, useState } from "react";
 import { ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import type { ScanRootDto, ScanStatusDto, ScanRunDto } from "@memorylane/shared";
@@ -65,6 +66,7 @@ export default function ScanFoldersManager({
 }: { onRootsChange?: (roots: ScanRootDto[]) => void; showTranscodeNudge?: boolean } = {}) {
   const [scanRoots, setScanRoots] = useState<ScanRootDto[]>([]);
   const [newPath, setNewPath] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ScanStatusDto | null>(null);
   const [openTranscodeRootId, setOpenTranscodeRootId] = useState<number | null>(null);
@@ -206,6 +208,7 @@ export default function ScanFoldersManager({
           aria-describedby="scan-folder-path-help scan-folder-path-examples"
           className={`min-w-64 flex-1 ${inputClass}`}
         />
+        <button type="button" onClick={() => setPickerOpen(true)} className={buttonClass}>{t("folderPicker.browse")}</button>
         <button onClick={() => void addScanRoot()} disabled={!newPath.trim()} className={accentButtonClass}>
           {t("scanning.addFolder")}
         </button>
@@ -300,6 +303,7 @@ export default function ScanFoldersManager({
         ))}
         {scanRoots.length === 0 && <li className="text-sm text-muted">{t("scanning.none")}</li>}
       </ul>
+      {pickerOpen && <FolderPicker initialPath={newPath} onChoose={path => {setNewPath(path); setPickerOpen(false);}} onClose={() => setPickerOpen(false)} />}
       {openTranscodeRootId != null && (
         <TranscodeCandidatesPanel
           scanRootId={openTranscodeRootId}
