@@ -75,6 +75,7 @@ The core includes metadata/RAW handling, thumbnails, and video tools because eve
 - **AI Search & Similar** — semantic search and visual similarity
 - **People** — face detection and grouping
 - **Apple Photos** — read-only access to a local macOS Photos library
+- **TV/DLNA** - view selected folders and collections via UPnP/DLNA compatible Smart TVs
 
 Read [Plugin architecture](docs/architecture/plugins.md), [AI architecture](docs/architecture/ai.md), and [Plugin repository deployment](docs/plugin-repository-deployment.md) for details.
 

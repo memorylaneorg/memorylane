@@ -115,9 +115,9 @@ in `server/src/server.ts`.
   No core recursive-query API or database schema change is needed.
 - `TvSharingSettings.tsx` is visible only for an active installed plugin. Settings
   include folders/recursion, interface, 1080p/4K, cache budget and diagnostics.
-- The manifest's `developmentOnly` build flag excludes this plugin from production
-  catalogs until interoperability testing and minimum supported core version are
-  finalized. Development catalog scanning strips that build-only field.
+- The manifest includes this plugin in production catalogs. Installation still leaves
+  sharing disabled until the user explicitly configures and enables it. Catalog
+  generation strips the build-only `developmentOnly` field.
 - See `docs/architecture/tv-sharing-plugin-spec.md` and
   `docs/superpowers/plans/2026-10-03-tv-sharing.md`. LG is a test device, never an
   implementation dependency. Real-TV validation and formal certification are not

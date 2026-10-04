@@ -18,5 +18,5 @@
     "licenses/LICENSE.txt",
     "licenses/xmldom-MIT.txt"
   ],
-  "developmentOnly": true
+  "developmentOnly": false
 }
