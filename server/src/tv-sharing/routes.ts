@@ -5,7 +5,8 @@ import { TV_PLUGIN_ID, TvSettingsSchema, TvSharingBroker } from './broker.js';
 export async function registerTvSharingRoutes(app: FastifyInstance, ctx: AppContext) {
     const manager = ctx.pluginManager;
     const broker = new TvSharingBroker(ctx.db, ctx.paths, () => !!manager?.isEnabled(TV_PLUGIN_ID), ctx.previewUpgrades);
-    ctx.previewUpgrades?.setEligibility(id => broker.settings().upgradePreviews && !!broker.allowedMedia(id));
+    ctx.previewUpgrades?.setEligibility(id => !!broker.allowedMedia(id));
+    ctx.previewUpgrades?.setEnabled(() => !!manager?.isEnabled(TV_PLUGIN_ID) && broker.settings().enabled && broker.settings().upgradePreviews);
     manager?.moduleHost?.setCoreHandler?.((id, method, payload) => broker.call(id, method, payload));
     const prepareTimer = setInterval(() => broker.preparePreviews(), 30000);
     prepareTimer.unref();
@@ -22,6 +23,19 @@ export async function registerTvSharingRoutes(app: FastifyInstance, ctx: AppCont
                 runtime = { sharing: false, error: 'Plugin unavailable' };
             }
         return { installed: enabled, settings: broker.settings(), interfaces: interfaces(), runtime, diagnostics: await broker.diagnostics() };
+    });
+    app.delete('/api/tv-sharing/cache', { preHandler: app.requireAuth }, async () => broker.clearCache());
+    app.post('/api/tv-sharing/preview-processing', { preHandler: app.requireAuth }, async (req, reply) => {
+        const enabled = (req.body as {enabled?:unknown} | null)?.enabled;
+        if (typeof enabled !== 'boolean') return reply.code(400).send({error:'Expected enabled boolean'});
+        if (!manager?.isEnabled(TV_PLUGIN_ID)) return reply.code(409).send({error:'Enable the TV Photo Sharing plugin first'});
+        const settings = broker.setPreviewProcessing(enabled);
+        broker.preparePreviews();
+        return {settings};
+    });
+    app.post('/api/tv-sharing/preview-retry', { preHandler: app.requireAuth }, async (_req, reply) => {
+        try { return {requested: broker.retryPreviews()}; }
+        catch (error) { return reply.code(409).send({error: error instanceof Error ? error.message : 'Unable to retry previews'}); }
     });
     app.put('/api/tv-sharing', { preHandler: app.requireAuth }, async (req, reply) => {
         if (!manager?.isEnabled(TV_PLUGIN_ID))

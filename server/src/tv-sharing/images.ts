@@ -8,6 +8,32 @@ export class TvImageCache {
     private running = 0;
     private queue: Array<() => void> = [];
     failures = 0;
+    private generation = 0;
+    private mutation: Promise<void> = Promise.resolve();
+    private mutate<T>(action: () => Promise<T>): Promise<T> {
+        const result = this.mutation.then(action);
+        this.mutation = result.then(() => {}, () => {});
+        return result;
+    }
+    async clear(): Promise<{freedBytes:number}> {
+        // An older conversion can finish serving its caller, but must not refill
+        // the cache after this explicit clear. Serialize writes and deletion.
+        this.generation++;
+        return this.mutate(async () => {
+            const dir = path.join(this.paths.dataDir, 'tv-sharing-cache');
+            let entries: string[];
+            try { entries = await fs.readdir(dir); }
+            catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {freedBytes:0}; throw error; }
+            let freedBytes = 0;
+            for (const name of entries.filter(n => n.endsWith('.jpg'))) {
+                const file = path.join(dir, name);
+                const stat = await fs.stat(file);
+                await fs.unlink(file);
+                freedBytes += stat.size;
+            }
+            return {freedBytes};
+        });
+    }
     constructor(private paths: AppPaths) { }
     async usage(): Promise<number> {
         const dir = path.join(this.paths.dataDir, 'tv-sharing-cache');
@@ -21,6 +47,7 @@ export class TvImageCache {
     async get(media: MediaRow, profile: 'thumbnail' | 'display', quality: '1080p' | '4k', limitMiB: number, authorized = () => true): Promise<Buffer> {
         if (!authorized())
             throw Error('Sharing revoked');
+        const generation = this.generation;
         const dir = path.join(this.paths.dataDir, 'tv-sharing-cache');
         await fs.mkdir(dir, { recursive: true });
         const key = createHash('sha256').update(JSON.stringify([media.id, media.file_size, media.fs_modified_at, media.thumbnail_version, profile, quality, 1])).digest('hex');
@@ -54,30 +81,33 @@ export class TvImageCache {
             const data = await this.convert(source, width, height, authorized);
             if (!authorized())
                 throw Error('Sharing revoked');
-            const temp = file + '.' + randomUUID();
-            try {
-                await fs.writeFile(temp, data);
-                await fs.rename(temp, file);
-            }
-            finally {
-                await fs.rm(temp, { force: true });
-            }
-            const entries = await Promise.all((await fs.readdir(dir)).filter(n => n.endsWith('.jpg')).map(async (n) => { const p = path.join(dir, n); try {
-                return { p, ...await fs.stat(p) };
-            }
-            catch {
-                return null;
-            } }));
-            const files = entries.filter((e): e is NonNullable<typeof e> => !!e).sort((a, b) => a.mtimeMs - b.mtimeMs);
-            let total = files.reduce((s, e) => s + e.size, 0);
-            for (const f of files) {
-                if (total <= limitMiB * 1024 * 1024)
-                    break;
-                if (f.p === file)
-                    continue;
-                await fs.rm(f.p, { force: true });
-                total -= f.size;
-            }
+            await this.mutate(async () => {
+                if (generation !== this.generation) return;
+                const temp = file + '.' + randomUUID();
+                try {
+                    await fs.writeFile(temp, data);
+                    await fs.rename(temp, file);
+                }
+                finally {
+                    await fs.rm(temp, { force: true });
+                }
+                const entries = await Promise.all((await fs.readdir(dir)).filter(n => n.endsWith('.jpg')).map(async (n) => { const p = path.join(dir, n); try {
+                    return { p, ...await fs.stat(p) };
+                }
+                catch {
+                    return null;
+                } }));
+                const files = entries.filter((e): e is NonNullable<typeof e> => !!e).sort((a, b) => a.mtimeMs - b.mtimeMs);
+                let total = files.reduce((s, e) => s + e.size, 0);
+                for (const f of files) {
+                    if (total <= limitMiB * 1024 * 1024)
+                        break;
+                    if (f.p === file)
+                        continue;
+                    await fs.rm(f.p, { force: true });
+                    total -= f.size;
+                }
+            });
             return data;
         }
         catch (error) {

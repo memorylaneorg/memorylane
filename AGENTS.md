@@ -343,6 +343,27 @@ are stored in the ignored test-library folder.
   `upgradePreviews` (default false). Web viewing never enqueues upgrades.
   Old previews remain until an atomic larger replacement succeeds. Version bumps
   invalidate TV derivatives; the Viewer polls progress and refreshes its source.
+- RAW preview storage has its own saved TV setting `previewCacheMiB` (default
+  4096 MiB). Settings shows usage, a disk-aware estimated increase, and failure
+  categories. Selecting a suggestion requires Save. Raising the limit resumes
+  budget-blocked jobs; originals and existing previews remain intact.
+- Migration 040 persists failure reasons and bulk retry requests. Authenticated
+  `/api/tv-sharing/preview-retry` requests one retry for currently eligible failed
+  or blocked RAWs, admitted in batches within the 1,000-job cap and resumed after
+  restart. Old failures have unknown causes until retried. Source failures require
+  manual retry; no automatic retry loop. Ready/limited previews are excluded from
+  bulk retry. Disk reserve remains 512 MiB.
+- Clear DLNA cache removes all TV delivery JPEGs through authenticated
+  `DELETE /api/tv-sharing/cache`. It reports freed space and preserves originals,
+  indexed thumbnails and shared RAW previews. In-flight old conversions cannot
+  refill the cleared cache; new TV requests regenerate images on demand.
 - New TV settings default to 4K/2048 MiB; saved settings are preserved.
   Settings Storage includes separate RAW preview and TV delivery cache sizes.
   See `docs/architecture/preview-upgrades.md` for bounds and decoder limitations.
+- Preview progress offers immediate persisted Pause/Resume (`POST /api/tv-sharing/preview-processing`).
+  Pauses stop the active decoder and preserve queued work. Removing a DLNA share cancels only
+  unfinished work no longer authorized by another share; collection membership changes are
+  rechecked during conversion. Settings recommends collections for explicit TV selections.
+- DLNA preview progress/failure counts cover only currently shared eligible RAWs (including
+  not-yet-admitted work); history from removed shares is retained but excluded. Storage usage
+  remains the actual total retained preview bytes.

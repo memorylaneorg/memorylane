@@ -139,6 +139,9 @@ export const api = {
     },
   },
   tvSharing: {
+    setPreviewProcessing: (enabled: boolean) => request<{settings:TvSharingSettingsDto}>("/api/tv-sharing/preview-processing", {method:"POST",body:JSON.stringify({enabled})}),
+    clearCache: () => request<{freedBytes:number}>("/api/tv-sharing/cache", {method:"DELETE"}),
+    retryPreviews: () => request<{requested:number}>("/api/tv-sharing/preview-retry", {method:"POST"}),
     get: () => request<TvSharingStatusDto>("/api/tv-sharing"),
     update: (settings: TvSharingSettingsDto) => request<{ settings: TvSharingSettingsDto; runtime: TvSharingStatusDto["runtime"] }>("/api/tv-sharing", { method: "PUT", body: JSON.stringify(settings) }),
     folders: (parentId?: number) => request<{id:number;name:string;parentId:number|null;hasChildren:number}[]>(`/api/tv-sharing/folders${parentId == null ? "" : `?parentId=${parentId}`}`),

@@ -840,9 +840,10 @@ export interface TvSharingSettingsDto {
   quality: "1080p" | "4k";
   cacheMiB: number;
   upgradePreviews: boolean;
+  previewCacheMiB?: number;
 }
 export interface TvSharingStatusDto {
-  diagnostics: { sharedPhotos: number; cacheBytes: number; conversionFailures: number; previews?: {queued:number;running:number;ready:number;limited:number;failed:number} };
+  diagnostics: { sharedPhotos: number; cacheBytes: number; conversionFailures: number; previews?: {queued:number;running:number;ready:number;limited:number;failed:number;blocked?:number}; previewStorage?: {usageBytes:number;limitMiB:number;freeBytes:number;remaining:number;suggestedMiB:number|null;retryPending:number;failures:{code:string;count:number}[]} };
   installed: boolean;
   settings: TvSharingSettingsDto;
   interfaces: { name: string; address: string }[];

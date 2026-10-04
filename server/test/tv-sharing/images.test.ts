@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect, vi } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -85,3 +85,41 @@ it.skipIf(process.platform === 'win32')('terminates a stalled worker when its pa
         await fs.rm(dir, { recursive: true, force: true });
     }
 }, 3000);
+
+it('clears all TV delivery images, preserves source/RAW previews, and regenerates on demand', async () => {
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'tv-clear-'));
+ try {
+  const original=path.join(dir,'original.jpg'), previews=path.join(dir,'previews');
+  await fs.mkdir(previews);await fs.writeFile(path.join(previews,'keep.jpg'),'RAW preview');
+  await sharp({create:{width:32,height:32,channels:3,background:'blue'}}).jpeg().toFile(original);
+  const row={id:1,absolute_path:original,media_type:'image',file_size:1,fs_modified_at:'1'} as MediaRow;
+  const cache=new TvImageCache({dataDir:dir} as AppPaths);
+  const first=await cache.get(row,'display','1080p',64);
+  expect(await cache.clear()).toEqual({freedBytes:first.length});
+  expect(await cache.usage()).toBe(0);
+  expect(await fs.readFile(path.join(previews,'keep.jpg'),'utf8')).toBe('RAW preview');
+  expect(await fs.stat(original)).toBeDefined();
+  expect(await cache.clear()).toEqual({freedBytes:0});
+  expect(await cache.get(row,'display','1080p',64)).toEqual(first);
+ } finally {await fs.rm(dir,{recursive:true,force:true});}
+});
+
+
+it('does not repopulate a cleared cache from a conversion already in flight',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'tv-clear-flight-'));
+ try {
+  const cache=new TvImageCache({dataDir:dir} as AppPaths);
+  let finish!:(bytes:Buffer)=>void;
+  const convert=vi.spyOn(cache as any,'convert').mockImplementation(()=>new Promise<Buffer>(resolve=>{finish=resolve;}));
+  const row={id:1,absolute_path:'/unused',media_type:'image',file_size:1,fs_modified_at:'1'} as MediaRow;
+  const pending=cache.get(row,'display','1080p',64);
+  await vi.waitFor(()=>expect(convert).toHaveBeenCalledTimes(1));
+  await cache.clear();
+  finish(Buffer.from('converted'));
+  expect(await pending).toEqual(Buffer.from('converted'));
+  expect(await cache.usage()).toBe(0);
+  convert.mockResolvedValue(Buffer.from('new request'));
+  await cache.get(row,'display','1080p',64);
+  expect(await cache.usage()).toBe(11);
+ }finally {await fs.rm(dir,{recursive:true,force:true});}
+});
