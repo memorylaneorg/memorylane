@@ -32,6 +32,13 @@ export default function TvSharingSettings() {
         setCollections(c);
     } }).catch(e => { if (active)
         setError(String(e)); }); return () => { active = false; }; }, []);
+    useEffect(() => {
+      let active = true;
+      const timer = setInterval(() => { void api.tvSharing.get().then(next => {
+        if (active) setStatus(old => old ? {...old, runtime:next.runtime, diagnostics:next.diagnostics} : next);
+      }).catch(() => {}); }, 3000);
+      return () => { active = false; clearInterval(timer); };
+    }, []);
     const dirty = !!settings && !!status && settingsKey(settings) !== settingsKey(status.settings);
     function change(patch: Partial<TvSharingSettingsDto>) { setSettings(s => s ? { ...s, ...patch } : s); setSaved(false); }
     async function save() { if (!settings || !dirty || busy)
@@ -61,6 +68,7 @@ export default function TvSharingSettings() {
  <label className="grid gap-1 text-sm">{t('tvSharing.quality')}<select className={input} disabled={busy} value={settings.quality} onChange={e => change({ quality: e.target.value as '1080p' | '4k' })}><option value="1080p">1080p</option><option value="4k">4K</option></select></label>
  <label className="grid gap-1 text-sm">{t('tvSharing.cache')}<input className={`${input} w-24`} disabled={busy} type="number" min={64} max={10240} value={settings.cacheMiB} onChange={e => change({ cacheMiB: Number(e.target.value) })}/></label>
  </div>
+ <div><label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={settings.upgradePreviews ?? false} onChange={e => change({upgradePreviews:e.target.checked})}/>{t('previewUpgrade.enable')}</label><p className="mt-1 text-sm text-muted">{t('previewUpgrade.help')}</p></div>
  <fieldset disabled={busy}><legend className="font-medium">{t('tvSharing.folders')}</legend><p className="text-sm text-muted">{t('tvSharing.future')}</p><ul className="mt-2 max-h-72 overflow-auto">{folders.map(f => <FolderChoice key={f.id} folder={f} selected={settings.folders} onChange={v => change({ folders: v })} disabled={busy}/>)}</ul><p className="mt-2 text-sm">{t('tvSharing.selected', { count: settings.folders.length })}</p><button type="button" className="text-sm underline" onClick={() => change({ folders: [] })}>{t('tvSharing.clear')}</button></fieldset>
  <fieldset disabled={busy}><legend className="font-medium">{t('collections.shared')}</legend><p className="text-sm text-muted">{t('collections.shareHelp')}</p><ul className="mt-2 max-h-60 overflow-auto">{collections.map(c=><li key={c.id}><label className="flex items-center gap-2 py-1"><input type="checkbox" checked={(settings.collections??[]).includes(c.id)} onChange={e=>change({collections:e.target.checked?[...(settings.collections??[]),c.id]:(settings.collections??[]).filter(id=>id!==c.id)})}/>{c.builtin?t('navigation.favorites'):c.name}</label></li>)}</ul><button type="button" className="mt-2 text-sm underline" onClick={()=>change({collections:[]})}>{t('collections.clearShared')}</button></fieldset>
  <details><summary>{t('tvSharing.advanced')}</summary><label className="mt-2 flex items-center gap-2 text-sm">{t('tvSharing.port')}<input className={`${input} w-24`} disabled={busy} type="number" min={1024} max={65535} value={settings.port} onChange={e => change({ port: Number(e.target.value) })}/></label></details>
@@ -69,6 +77,7 @@ export default function TvSharingSettings() {
  <p role="status" aria-live="polite" className={`text-sm ${dirty ? 'font-medium text-ink' : 'text-muted'}`}>{t(busy ? 'tvSharing.saving' : dirty ? 'tvSharing.unsaved' : saved ? 'tvSharing.saved' : 'tvSharing.noChanges')}</p>
  </div>
  <p className="text-sm">{t('tvSharing.diagnostics', { count: status.diagnostics.sharedPhotos, cache: (status.diagnostics.cacheBytes / 1048576).toFixed(1), failures: status.diagnostics.conversionFailures })}</p>
+ {status.diagnostics.previews && <p role="status" className="text-sm">{t('previewUpgrade.progress', {done:status.diagnostics.previews.ready + status.diagnostics.previews.limited + status.diagnostics.previews.failed, total:Object.values(status.diagnostics.previews).reduce((a,b)=>a+b,0)})} {t('previewUpgrade.results', status.diagnostics.previews)}</p>}
  <p className="text-sm">{t(status.runtime?.sharing ? 'tvSharing.running' : 'tvSharing.off')}</p>
  {status.runtime?.error && <p role="alert" className="text-sm text-amber-600">{status.runtime.error}</p>}
  </>}

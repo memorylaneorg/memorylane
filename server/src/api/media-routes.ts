@@ -139,8 +139,22 @@ export async function registerMediaRoutes(app: FastifyInstance, ctx: AppContext)
     return streamFile(request, reply, thumbPath, "image/jpeg");
   });
 
+  app.get("/api/media/:id/preview-status", { preHandler: app.requireAuth }, async (request, reply) => {
+    const media = resolveVerifiedMedia(ctx, Number((request.params as {id:string}).id));
+    if (!media) return reply.code(404).send({error:"Media not found"});
+    const current = db.prepare('SELECT thumbnail_version FROM media WHERE id=?').get(media.id) as {thumbnail_version:number};
+    return { state: ctx.previewUpgrades?.isEligible(media.id) ? ctx.previewUpgrades.status(media.id) : null, version: current.thumbnail_version };
+  });
+  app.post("/api/media/:id/preview-retry", { preHandler: app.requireAuth }, async (request, reply) => {
+    const media = resolveVerifiedMedia(ctx, Number((request.params as {id:string}).id));
+    if (!media) return reply.code(404).send({error:"Media not found"});
+    if (!ctx.previewUpgrades?.isEligible(media.id)) return reply.code(403).send({error:"Preview upgrades are limited to DLNA-shared photos"});
+    ctx.previewUpgrades.enqueue(media, true, 5);
+    return {ok:true};
+  });
+
   // Larger RAW-only preview for the fullscreen Viewer - see
-  // media/thumbnail-generator.ts PREVIEW_LONG_EDGE. Not generated for
+  // media/thumbnail-generator.ts. Not generated for
   // standard images (they use /file at full original resolution instead).
   app.get("/api/media/:id/preview", { preHandler: app.requireAuth }, async (request, reply) => {
     const id = Number((request.params as { id: string }).id);
@@ -151,7 +165,7 @@ export async function registerMediaRoutes(app: FastifyInstance, ctx: AppContext)
     if (media.thumbnail_status !== "done" || !fs.existsSync(previewPath)) {
       return reply.code(404).send({ error: "Preview not available" });
     }
-    reply.header("Cache-Control", media.source_kind === "apple-photos" ? "no-store" : "private, max-age=31536000, immutable");
+    reply.header("Cache-Control", "private, no-cache");
     return streamFile(request, reply, previewPath, "image/jpeg");
   });
 }

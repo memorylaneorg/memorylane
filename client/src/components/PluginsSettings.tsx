@@ -105,7 +105,7 @@ export default function PluginsSettings() {
       </button>}
       {!item.required && item.state !== "available" && <button type="button" className={buttonClass} disabled={busy} onClick={() => void removePlatformPlugin(item)}>{t("pluginUi.remove")}</button>}</div></div>
     {installingPlugin?.id === item.id && <PluginInstallProgress label={installingPlugin.label} />}
-    {item.id === "com.memorylane.tv-sharing" && isPluginActive(item) && <TvSharingSettings />}
+    {item.id === "com.memorylane.tv-sharing" && isPluginActive(item) && <details className="mt-4"><summary className="cursor-pointer font-medium text-ink">{t("navigation.settings")}</summary><TvSharingSettings /></details>}
   </section>;
   return <div className="space-y-6">
     <div className="flex items-center justify-between gap-4"><p className="text-sm text-muted">{t("pluginUi.updateIntro")}</p><CheckForUpdatesButton disabled={busy} onChecked={refresh} onCheckingChange={setBusy} /></div>

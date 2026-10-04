@@ -330,3 +330,16 @@ are stored in the ignored test-library folder.
   developers, authors or co-authors in commits or PRs. Do not add AI `Co-authored-by`
   trailers, bot authorship, or generated-by attribution. Use the user's configured
   human Git identity and verify commit author/committer and PR text before publishing.
+
+### Background RAW preview upgrades
+
+- Native-resolution embedded previews are selected by pixel area, not tag order.
+  `media/preview-upgrades.ts` owns the persistent priority queue (migration 039);
+  its child worker performs extraction/native decoding with a 60-second deadline.
+  Only DLNA-shared photos are upgraded, gated by the optional TV setting
+  `upgradePreviews` (default false). Web viewing never enqueues upgrades.
+  Old previews remain until an atomic larger replacement succeeds. Version bumps
+  invalidate TV derivatives; the Viewer polls progress and refreshes its source.
+- New TV settings default to 4K/2048 MiB; saved settings are preserved.
+  Settings Storage includes separate RAW preview and TV delivery cache sizes.
+  See `docs/architecture/preview-upgrades.md` for bounds and decoder limitations.

@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import { ExifTool, type Tags } from "exiftool-vendored";
 import type { Logger } from "pino";
 
@@ -68,22 +69,27 @@ export async function readTags(filePath: string): Promise<Tags | null> {
 }
 
 // Returns the largest embedded preview image found in a RAW file, if any.
-// Tries the tags in rough order of typical size (largest-first) across
-// common camera makes; the first one that resolves to actual bytes wins.
+// Compare pixel dimensions across all supported embedded-image tags.
 export async function extractLargestEmbeddedPreview(filePath: string): Promise<Buffer | null> {
   if (!isAvailable) return null;
   const et = getExifTool();
   const candidateTags = ["JpgFromRaw2", "JpgFromRaw", "PreviewImage", "OtherImage", "ThumbnailImage"];
 
+  let best: Buffer | null = null;
+  let bestArea = 0;
   for (const tag of candidateTags) {
     try {
       const buf = await et.extractBinaryTagToBuffer(tag, filePath);
-      if (buf && buf.length > 0) return buf;
+      if (buf && buf.length > 0) {
+        const meta = await sharp(buf).metadata();
+        const area = (meta.width ?? 0) * (meta.height ?? 0);
+        if (area > bestArea) { best = buf; bestArea = area; }
+      }
     } catch {
       // tag not present on this file - try the next candidate
     }
   }
-  return null;
+  return best;
 }
 
 export async function shutdownExifTool(): Promise<void> {

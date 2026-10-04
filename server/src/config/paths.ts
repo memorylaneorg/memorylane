@@ -79,7 +79,7 @@ export function resolveAppPaths(): AppPaths {
     dbPath: path.join(dataDir, "memorylane.sqlite"),
     thumbnailsDir: path.join(dataDir, "thumbnails"),
     // Larger RAW-only previews live separately from grid thumbnails - see
-    // media/thumbnail-generator.ts PREVIEW_LONG_EDGE.
+    // media/thumbnail-generator.ts.
     previewsDir: path.join(dataDir, "previews"),
     transcodingDir: path.join(dataDir, "transcoding"),
     vectorsDir: path.join(dataDir, "vectors"),

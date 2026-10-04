@@ -4,8 +4,12 @@ import type { AppContext } from '../context.js';
 import { TV_PLUGIN_ID, TvSettingsSchema, TvSharingBroker } from './broker.js';
 export async function registerTvSharingRoutes(app: FastifyInstance, ctx: AppContext) {
     const manager = ctx.pluginManager;
-    const broker = new TvSharingBroker(ctx.db, ctx.paths, () => !!manager?.isEnabled(TV_PLUGIN_ID));
+    const broker = new TvSharingBroker(ctx.db, ctx.paths, () => !!manager?.isEnabled(TV_PLUGIN_ID), ctx.previewUpgrades);
+    ctx.previewUpgrades?.setEligibility(id => broker.settings().upgradePreviews && !!broker.allowedMedia(id));
     manager?.moduleHost?.setCoreHandler?.((id, method, payload) => broker.call(id, method, payload));
+    const prepareTimer = setInterval(() => broker.preparePreviews(), 30000);
+    prepareTimer.unref();
+    app.addHook("onClose", async () => { clearInterval(prepareTimer); });
     const interfaces = () => Object.entries(os.networkInterfaces()).flatMap(([name, entries]) => /^(utun|tun|tap|wg|tailscale|docker|veth|bridge)/i.test(name) ? [] : (entries ?? []).filter(i => !i.internal && i.family === 'IPv4' && TvSettingsSchema.shape.address.safeParse(i.address).success).map(i => ({ name, address: i.address })));
     app.get('/api/tv-sharing', { preHandler: app.requireAuth }, async () => {
         const enabled = !!manager?.isEnabled(TV_PLUGIN_ID);
@@ -27,6 +31,7 @@ export async function registerTvSharingRoutes(app: FastifyInstance, ctx: AppCont
             if (next.enabled && !interfaces().some(i => i.address === next.address))
                 return reply.code(400).send({ error: 'Select an available private LAN interface' });
             const settings = broker.save(parsed);
+            broker.preparePreviews();
             await manager.moduleHost.call(TV_PLUGIN_ID, 'refresh', {});
             const runtime = await manager.moduleHost.call(TV_PLUGIN_ID, 'status', {});
             return { settings, runtime };

@@ -233,6 +233,8 @@ export const api = {
     remove: (id: number) => request<void>(`/api/ignored-paths/${id}`, { method: "DELETE" }),
   },
   media: {
+    previewStatus: (id: number) => request<{state: string | null; version: number}>(`/api/media/${id}/preview-status`),
+    retryPreview: (id: number) => request(`/api/media/${id}/preview-retry`, {method:"POST"}),
     list: (filters: ReportFilters, offset = 0, limit = 200) =>
       request<PaginatedResult<MediaDto>>(`/api/media${toQueryString({ ...filters, offset, limit })}`),
     get: (id: number) => request<MediaDto>(`/api/media/${id}`),

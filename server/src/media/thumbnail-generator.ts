@@ -5,13 +5,7 @@ import bmpJs from "bmp-js";
 
 export const THUMBNAIL_LONG_EDGE = 500;
 
-// A second, larger tier used only for RAW files. Standard JPEGs/PNGs/etc. get
-// viewed at full original resolution via /api/media/:id/file - only RAW has
-// no browser-viewable original, so without this it would fall back to the
-// same 500px grid thumbnail in the fullscreen Viewer, looking soft/small.
-// Generated from the same already-extracted embedded preview buffer as the
-// grid thumbnail, so it costs one extra Sharp resize, not another ExifTool call.
-export const PREVIEW_LONG_EDGE = 1800;
+// RAW viewing previews retain native dimensions; grid thumbnails remain bounded.
 
 async function ensureDirFor(filePath: string): Promise<void> {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
@@ -94,7 +88,7 @@ export async function generateThumbnailFromBuffer(
     .toFile(destPath);
 }
 
-// Larger RAW-only preview for fullscreen viewing - see PREVIEW_LONG_EDGE above.
+// Preserve native embedded resolution for fullscreen viewing; grid thumbnails stay small.
 export async function generatePreviewFromBuffer(
   buffer: Buffer,
   destPath: string,
@@ -102,7 +96,6 @@ export async function generatePreviewFromBuffer(
 ): Promise<void> {
   await ensureDirFor(destPath);
   await applyExifOrientation(sharp(buffer), orientation)
-    .resize({ width: PREVIEW_LONG_EDGE, height: PREVIEW_LONG_EDGE, fit: "inside", withoutEnlargement: true })
     .jpeg({ quality: 85 })
     .toFile(destPath);
 }
