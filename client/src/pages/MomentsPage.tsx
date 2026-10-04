@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, RefreshCw } from "lucide-react";
 import type { MomentDetectionLevel, MomentsSummaryDto } from "@memorylane/shared";
 import { api } from "../api/client";
 import { useTranslation } from "react-i18next";
@@ -36,6 +36,15 @@ export default function MomentsPage() {
     void api.moments.summary(detection).then(setSummary).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
   }, [detection]);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = () => {
+    setRefreshing(true);
+    setError(null);
+    void api.moments.summary(detection, true).then(setSummary)
+      .catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .finally(() => setRefreshing(false));
+  };
+
   const chooseLevel = (level: MomentDetectionLevel) => {
     const next = new URLSearchParams(params);
     if (level === "balanced") next.delete("detection"); else next.set("detection", level);
@@ -49,16 +58,22 @@ export default function MomentsPage() {
           <h1 className="font-serif text-3xl font-semibold text-ink">{t("moments.title")}</h1>
           <p className="mt-1 text-sm text-muted">{t("moments.intro")}</p>
         </div>
-        <div>
-          <p className="mb-1.5 text-xs font-medium text-muted">{t("moments.detection")}</p>
-          <div role="group" aria-label={t("moments.detection")} className="flex rounded-lg border border-border bg-surface p-0.5">
-            {LEVELS.map((level) => (
-              <button key={level} type="button" aria-pressed={detection === level} onClick={() => chooseLevel(level)}
-                className={`rounded-md px-3 py-1.5 text-sm transition ${detection === level ? "bg-accent text-page" : "text-muted hover:bg-hover hover:text-ink"}`}>
-                {t(`moments.level.${level}`)}
-              </button>
-            ))}
+        <div className="flex items-end gap-3">
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-muted">{t("moments.detection")}</p>
+            <div role="group" aria-label={t("moments.detection")} className="flex rounded-lg border border-border bg-surface p-0.5">
+              {LEVELS.map((level) => (
+                <button key={level} type="button" aria-pressed={detection === level} onClick={() => chooseLevel(level)}
+                  className={`rounded-md px-3 py-1.5 text-sm transition ${detection === level ? "bg-accent text-page" : "text-muted hover:bg-hover hover:text-ink"}`}>
+                  {t(`moments.level.${level}`)}
+                </button>
+              ))}
+            </div>
           </div>
+          <button type="button" onClick={refresh} disabled={refreshing} title={t("common.refresh")} aria-label={t("common.refresh")}
+            className="rounded-lg border border-border bg-surface p-2.5 text-muted hover:bg-hover hover:text-ink disabled:opacity-50">
+            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+          </button>
         </div>
       </header>
 

@@ -157,13 +157,20 @@ export class StackService {
   // MediaDto before sending it (see api/decorate-media.ts).
   attachStacks<T extends { id: number; stack: StackRefDto | null }>(items: T[]): T[] {
     if (items.length === 0) return items;
-    const placeholders = items.map(() => "?").join(",");
-    const rows = this.db
-      .prepare(
-        `SELECT sm.media_id, s.id, s.cover_media_id, (SELECT COUNT(*) FROM stack_members m2 WHERE m2.stack_id = s.id AND m2.media_id NOT IN (SELECT media_id FROM deletion_marks)) AS count
-         FROM stack_members sm JOIN stacks s ON s.id = sm.stack_id WHERE sm.media_id IN (${placeholders})`,
-      )
-      .all(...items.map((i) => i.id)) as { media_id: number; id: number; cover_media_id: number; count: number }[];
+    // With one big IN list SQLite scans every stack and probes the whole list for
+    // each (quadratic: ~8s for 15k ids on a 15k-stack library); chunks stay fast.
+    const CHUNK = 500;
+    const rows: { media_id: number; id: number; cover_media_id: number; count: number }[] = [];
+    for (let i = 0; i < items.length; i += CHUNK) {
+      const chunk = items.slice(i, i + CHUNK);
+      const placeholders = chunk.map(() => "?").join(",");
+      rows.push(...(this.db
+        .prepare(
+          `SELECT sm.media_id, s.id, s.cover_media_id, (SELECT COUNT(*) FROM stack_members m2 WHERE m2.stack_id = s.id AND m2.media_id NOT IN (SELECT media_id FROM deletion_marks)) AS count
+           FROM stack_members sm JOIN stacks s ON s.id = sm.stack_id WHERE sm.media_id IN (${placeholders})`,
+        )
+        .all(...chunk.map((c) => c.id)) as typeof rows));
+    }
     const byMedia = new Map(rows.map((r) => [r.media_id, r]));
     for (const item of items) {
       const r = byMedia.get(item.id);

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { GearCameraEnrichmentDto, GearCameraSummaryDto, GearLensSummaryDto, GearLensTimelineDto } from "@memorylane/shared";
 import type { AppContext } from "../context.js";
 import { SettingsRepo } from "../db/settings-repo.js";
+import { browseCache } from "./browse-cache.js";
 
 // Points at the memorylane-museum service (separate repo - see its own
 // docs/design.md for why). Override to http://localhost:4281 in root .env
@@ -68,12 +69,26 @@ export async function registerGearRoutes(app: FastifyInstance, ctx: AppContext):
   const museumLookupIfEnabled = (kind: "camera" | "lens", labels: string[]) =>
     settings.getAll().museumServiceEnabled ? museumLookup(kind, labels) : Promise.resolve(new Map<string, MuseumGear | null>());
 
-  const mostUsedLens = db.prepare(
-    `SELECT mx.lens_id AS label, COUNT(*) AS photoCount
-     FROM media_exif mx JOIN media ON media.id = mx.media_id
-     WHERE mx.camera_model = ? AND mx.lens_id IS NOT NULL AND mx.lens_id != ''
-     GROUP BY mx.lens_id ORDER BY photoCount DESC LIMIT 1`,
-  );
+  const cache = browseCache(db);
+
+  // One grouped pass for every camera. A per-camera query makes SQLite scan the
+  // whole lens index once per camera (~1 s for 50 cameras on a 145k library).
+  // Rows arrive ordered by lens id, and only a strictly higher count replaces
+  // the current best, so ties keep the lowest lens id like the per-camera query did.
+  const mostUsedLensByCamera = (): Map<string, { label: string; photoCount: number }> => {
+    const rows = db.prepare(
+      `SELECT mx.camera_model AS camera, mx.lens_id AS label, COUNT(*) AS photoCount
+       FROM media_exif mx JOIN media ON media.id = mx.media_id
+       WHERE mx.camera_model IS NOT NULL AND mx.camera_model != '' AND mx.lens_id IS NOT NULL AND mx.lens_id != ''
+       GROUP BY mx.camera_model, mx.lens_id ORDER BY mx.camera_model, mx.lens_id`,
+    ).all() as { camera: string; label: string; photoCount: number }[];
+    const best = new Map<string, { label: string; photoCount: number }>();
+    for (const row of rows) {
+      const current = best.get(row.camera);
+      if (!current || row.photoCount > current.photoCount) best.set(row.camera, { label: row.label, photoCount: row.photoCount });
+    }
+    return best;
+  };
 
   // A camera clock set wrong produces obviously-bogus captured_at values
   // (seen for real: one camera's raw MIN/MAX spanned 2007-2136). Bounding to
@@ -106,6 +121,14 @@ export async function registerGearRoutes(app: FastifyInstance, ctx: AppContext):
     const minPhotosRaw = Number((request.query as { minPhotos?: string }).minPhotos);
     const minPhotos = Number.isFinite(minPhotosRaw) && minPhotosRaw >= 0 ? minPhotosRaw : settings.getAll().gearMinPhotos;
 
+    // Straight out of the local EXIF scan, so it's cached only until the library
+    // changes (scan, edits to the index) - never served stale after a rescan.
+    const dto = cache.getOrCompute(`gear:cameras:${minPhotos}`, cache.fingerprint(), () => buildCameraSummaries(minPhotos));
+    return reply.send(dto);
+  });
+
+  const buildCameraSummaries = (minPhotos: number): GearCameraSummaryDto[] => {
+    const lensByCamera = mostUsedLensByCamera();
     const rows = db
       .prepare(
         `SELECT mx.camera_model AS label, COUNT(*) AS photoCount,
@@ -134,8 +157,8 @@ export async function registerGearRoutes(app: FastifyInstance, ctx: AppContext):
     // an external service call, while everything above comes straight out of
     // the local EXIF scan and should always reflect its current state. See
     // POST /api/gear/cameras/enrich, which the client caches independently.
-    const dto: GearCameraSummaryDto[] = rows.map((r) => {
-      const lens = mostUsedLens.get(r.label) as { label: string; photoCount: number } | undefined;
+    return rows.map((r) => {
+      const lens = lensByCamera.get(r.label);
       const years = yearBreakdown.all(r.label, DATE_FLOOR) as { year: string; photoCount: number }[];
       const locations = distinctLocations.get(r.label) as { c: number } | undefined;
       return {
@@ -163,8 +186,7 @@ export async function registerGearRoutes(app: FastifyInstance, ctx: AppContext):
         imageAttribution: null,
       };
     });
-    return reply.send(dto);
-  });
+  };
 
   // Separate from /api/gear/cameras so the client can cache this part on its
   // own terms (only refetch on an explicit refresh) while the EXIF data above
@@ -199,15 +221,18 @@ export async function registerGearRoutes(app: FastifyInstance, ctx: AppContext):
   // taken that year" on hover, which needs the true denominator, not just
   // whatever cameras happen to be currently displayed.
   app.get("/api/gear/year-totals", { preHandler: app.requireAuth }, async (_request, reply) => {
-    const rows = db
-      .prepare(
-        `SELECT substr(mx.captured_at_precise, 1, 4) AS year, COUNT(*) AS photoCount
-         FROM media_exif mx JOIN media ON media.id = mx.media_id
-         WHERE mx.camera_model IS NOT NULL AND mx.camera_model != '' AND ${dateBound}
-         GROUP BY year`,
-      )
-      .all(DATE_FLOOR) as { year: string; photoCount: number }[];
-    return reply.send(rows.map((r) => ({ year: r.year, count: r.photoCount })));
+    const totals = cache.getOrCompute("gear:year-totals", cache.fingerprint(), () => {
+      const rows = db
+        .prepare(
+          `SELECT substr(mx.captured_at_precise, 1, 4) AS year, COUNT(*) AS photoCount
+           FROM media_exif mx JOIN media ON media.id = mx.media_id
+           WHERE mx.camera_model IS NOT NULL AND mx.camera_model != '' AND ${dateBound}
+           GROUP BY year`,
+        )
+        .all(DATE_FLOOR) as { year: string; photoCount: number }[];
+      return rows.map((r) => ({ year: r.year, count: r.photoCount }));
+    });
+    return reply.send(totals);
   });
 
   app.get("/api/gear/lenses", { preHandler: app.requireAuth }, async (request, reply) => {

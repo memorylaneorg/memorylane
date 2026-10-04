@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { buildMediaQuery } from "../query/media-query.js";
+import { probeRandomMediaIds } from "../query/random-pick.js";
 
 // Isolated behind an interface so the sampling strategy can be swapped (e.g.
 // for reservoir sampling or history-weighted "forgotten photos" selection)
@@ -23,15 +24,18 @@ export class SqliteRandomSelectionService implements RandomSelectionService {
 
   getRandomMediaIds(count: number): number[] {
     // Photos only for v1 (Surprise Me excludes video per product spec section 20).
-    const eligibleRows = this.db
-      .prepare(
-        `SELECT media.id FROM media
-         LEFT JOIN media_engagement e ON e.media_id = media.id
-         WHERE ${ELIGIBLE}
-           AND (e.last_shown_at IS NULL OR e.last_shown_at < datetime('now', '-${RECENTLY_SHOWN_COOLDOWN_DAYS} days'))
-         ORDER BY RANDOM() LIMIT ?`,
-      )
-      .all(count) as { id: number }[];
+    const fresh = `${ELIGIBLE} AND (e.last_shown_at IS NULL OR e.last_shown_at < datetime('now', '-${RECENTLY_SHOWN_COOLDOWN_DAYS} days'))`;
+    const probed = probeRandomMediaIds(this.db, { count, where: fresh, join: "LEFT JOIN media_engagement e ON e.media_id = media.id" });
+    const eligibleRows = probed
+      ? probed.map((id) => ({ id }))
+      : (this.db
+        .prepare(
+          `SELECT media.id FROM media
+           LEFT JOIN media_engagement e ON e.media_id = media.id
+           WHERE ${fresh}
+           ORDER BY RANDOM() LIMIT ?`,
+        )
+        .all(count) as { id: number }[]);
 
     if (eligibleRows.length >= count) {
       return eligibleRows.map((r) => r.id);

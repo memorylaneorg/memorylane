@@ -13,6 +13,7 @@ import {
 import { buildMediaQuery, mediaCountSql, mediaSelectSql, ACTIVE_SOURCE_SQL, APPLE_PLUGIN_ENABLED_SQL, UNMARKED_MEDIA_SQL } from "../query/media-query.js";
 import { isApplePhotosEnabled } from "../plugins/registry.js";
 import { decorateMedia } from "./decorate-media.js";
+import { browseCache } from "./browse-cache.js";
 
 // Recursive CTE selecting a folder and every active descendant - reused by the
 // "all files in this folder tree" flat view.
@@ -30,6 +31,10 @@ export function getFolderCounts(
   ctx: AppContext,
   folderId: number,
 ): Omit<FolderCounts, "recursiveMediaCount" | "recursiveSizeBytes"> {
+  return { ...getFolderChildCounts(ctx, folderId), ...getFolderCover(ctx, folderId) };
+}
+
+function getFolderChildCounts(ctx: AppContext, folderId: number): { mediaCount: number; childFolderCount: number } {
   const mediaCount = (
     ctx.db
       .prepare(
@@ -42,6 +47,10 @@ export function getFolderCounts(
       .prepare("SELECT COUNT(*) as c FROM folders WHERE parent_id = ? AND status = 'active'")
       .get(folderId) as { c: number }
   ).c;
+  return { mediaCount, childFolderCount };
+}
+
+function getFolderCover(ctx: AppContext, folderId: number): { thumbnailMediaId: number | null; thumbnailVersion: number } {
   // Randomized (not "most recent") so a folder's cover photo changes on every
   // request instead of always showing the same one - matches the Home hero's
   // "re-rolled on every load" feel.
@@ -67,11 +76,31 @@ export function getFolderCounts(
   }
 
   return {
-    mediaCount,
-    childFolderCount,
     thumbnailMediaId: thumbRow?.id ?? null,
     thumbnailVersion: thumbRow?.thumbnail_version ?? 0,
   };
+}
+
+// Same candidates getFolderCover chooses from (direct photos, else the whole
+// subtree), as ids only. The listing caches this per library fingerprint and
+// picks one at random per request, so covers still re-roll on every load
+// without a full ORDER BY RANDOM() sort for each folder.
+function getFolderCoverCandidates(ctx: AppContext, folderId: number): number[] {
+  const eligible = `status = 'active' AND ${ACTIVE_SOURCE_SQL} AND ${UNMARKED_MEDIA_SQL} AND thumbnail_status = 'done' AND ${EXCLUDE_LIVE_PHOTO_VIDEOS} AND ${EXCLUDE_PAIRED_RAW}`;
+  const direct = ctx.db.prepare(`SELECT media.id FROM media WHERE parent_folder_id = ? AND ${eligible}`).all(folderId) as { id: number }[];
+  if (direct.length > 0) return direct.map((row) => row.id);
+  const subtree = ctx.db.prepare(
+    `${DESCENDANT_FOLDERS_CTE}
+     SELECT media.id FROM media WHERE parent_folder_id IN (SELECT id FROM descendant_folders) AND ${eligible}`,
+  ).all(folderId) as { id: number }[];
+  return subtree.map((row) => row.id);
+}
+
+function pickFolderCover(ctx: AppContext, candidates: number[]): { thumbnailMediaId: number | null; thumbnailVersion: number } {
+  if (candidates.length === 0) return { thumbnailMediaId: null, thumbnailVersion: 0 };
+  const id = candidates[Math.floor(Math.random() * candidates.length)];
+  const row = ctx.db.prepare("SELECT thumbnail_version FROM media WHERE id = ?").get(id) as { thumbnail_version: number } | undefined;
+  return { thumbnailMediaId: id, thumbnailVersion: row?.thumbnail_version ?? 0 };
 }
 
 // Totals across a folder's entire subtree (not just direct children) - used
@@ -104,13 +133,22 @@ export async function registerFolderRoutes(app: FastifyInstance, ctx: AppContext
          ORDER BY scan_roots.sort_order, scan_roots.id`,
       )
       .all() as FolderRow[];
+    // Counts and subtree totals are cached until the library changes; each
+    // folder's cover photo is still re-rolled on every request.
+    const cache = browseCache(db);
+    const fingerprint = cache.fingerprint();
     return reply.send(
       rows.map((row) => {
-        const recursive = getRecursiveFolderStats(ctx, row.id);
+        const stats = cache.getOrCompute(`folders:stats:${row.id}`, fingerprint, () => ({
+          ...getFolderChildCounts(ctx, row.id),
+          recursive: getRecursiveFolderStats(ctx, row.id),
+        }));
         return toFolderDto(row, {
-          ...getFolderCounts(ctx, row.id),
-          recursiveMediaCount: recursive.count,
-          recursiveSizeBytes: recursive.sizeBytes,
+          mediaCount: stats.mediaCount,
+          childFolderCount: stats.childFolderCount,
+          ...pickFolderCover(ctx, cache.getOrCompute(`folders:covers:${row.id}`, fingerprint, () => getFolderCoverCandidates(ctx, row.id))),
+          recursiveMediaCount: stats.recursive.count,
+          recursiveSizeBytes: stats.recursive.sizeBytes,
         });
       }),
     );

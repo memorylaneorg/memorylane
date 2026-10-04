@@ -32,7 +32,6 @@ import type {
   TranscodeJobDto,
   ArchiveTranscodedResultDto,
   ReportFacetsDto,
-  GearCameraEnrichmentDto,
   GearCameraSummaryDto,
   GearLensSummaryDto,
   GearLensTimelineDto,
@@ -267,17 +266,16 @@ export const api = {
   },
   gear: {
     cameras: (minPhotos = 50) => request<GearCameraSummaryDto[]>(`/api/gear/cameras?minPhotos=${minPhotos}`),
-    enrichCameras: (labels: string[]) =>
-      request<Record<string, GearCameraEnrichmentDto>>("/api/gear/cameras/enrich", { method: "POST", body: JSON.stringify({ labels }) }),
     lenses: (camera: string) => request<GearLensSummaryDto[]>(`/api/gear/cameras/lenses?camera=${encodeURIComponent(camera)}`),
     lensTimeline: (minPhotos = 50) => request<GearLensTimelineDto[]>(`/api/gear/lenses?minPhotos=${minPhotos}`),
     yearTotals: () => request<GearYearTotalDto[]>("/api/gear/year-totals"),
   },
   timeline: {
-    summary: () => request<TimelineSummaryDto>("/api/timeline"),
+    // refresh=true rebuilds the server's cached scan and re-rolls the sample photos.
+    summary: (refresh = false) => request<TimelineSummaryDto>(`/api/timeline${refresh ? "?refresh=1" : ""}`),
   },
   moments: {
-    summary: (detection: MomentDetectionLevel) => request<MomentsSummaryDto>(`/api/moments?detection=${detection}`),
+    summary: (detection: MomentDetectionLevel, refresh = false) => request<MomentsSummaryDto>(`/api/moments?detection=${detection}${refresh ? "&refresh=1" : ""}`),
     detail: (start: string, end: string, detection: MomentDetectionLevel) =>
       request<MomentDetailDto>(`/api/moments/${start}/${end}?detection=${detection}`),
   },

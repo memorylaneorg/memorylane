@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, RefreshCw } from "lucide-react";
 import type { TimelineSummaryDto } from "@memorylane/shared";
 import { api } from "../api/client";
 import { useTranslation } from "react-i18next";
@@ -22,11 +22,26 @@ export default function TimelinePage() {
     void api.timeline.summary().then(setSummary).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
   }, []);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = () => {
+    setRefreshing(true);
+    setError(null);
+    void api.timeline.summary(true).then(setSummary)
+      .catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .finally(() => setRefreshing(false));
+  };
+
   return (
     <div>
-      <header className="mb-8 border-b border-border pb-5">
-        <h1 className="font-serif text-3xl font-semibold text-ink">{t("timeline.title")}</h1>
-        <p className="mt-1 text-sm text-muted">{t("timeline.intro")}</p>
+      <header className="mb-8 flex items-start justify-between gap-4 border-b border-border pb-5">
+        <div>
+          <h1 className="font-serif text-3xl font-semibold text-ink">{t("timeline.title")}</h1>
+          <p className="mt-1 text-sm text-muted">{t("timeline.intro")}</p>
+        </div>
+        <button type="button" onClick={refresh} disabled={refreshing} title={t("common.refresh")} aria-label={t("common.refresh")}
+          className="shrink-0 rounded-lg border border-border bg-surface p-2.5 text-muted hover:bg-hover hover:text-ink disabled:opacity-50">
+          <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+        </button>
       </header>
 
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}

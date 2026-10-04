@@ -14,6 +14,7 @@ import type { AppContext } from "../context.js";
 import { NEEDS_TRANSCODE_SQL_CLAUSE } from "../media/video-compatibility.js";
 import { isApplePhotosEnabled } from "../plugins/registry.js";
 import { UNMARKED_MEDIA_SQL } from "../query/media-query.js";
+import { browseCache } from "./browse-cache.js";
 
 interface ScanRootRow {
   id: number;
@@ -84,7 +85,9 @@ function getScanRootStats(db: Database.Database, scanRootId: number): ScanRootSt
   return stats;
 }
 
-function toDto(db: Database.Database, row: ScanRootRow): ScanRootDto {
+// With a fingerprint the per-root stats come from the browse cache (listing
+// path, hit on every Home/Settings load); without one they're computed fresh.
+function toDto(db: Database.Database, row: ScanRootRow, fingerprint?: string): ScanRootDto {
   return {
     id: row.id,
     path: row.path,
@@ -93,7 +96,9 @@ function toDto(db: Database.Database, row: ScanRootRow): ScanRootDto {
     sortOrder: row.sort_order,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    stats: getScanRootStats(db, row.id),
+    stats: fingerprint
+      ? browseCache(db).getOrCompute(`scanroots:stats:${row.id}`, fingerprint, () => getScanRootStats(db, row.id))
+      : getScanRootStats(db, row.id),
   };
 }
 
@@ -102,7 +107,8 @@ export async function registerScanRootRoutes(app: FastifyInstance, ctx: AppConte
 
   app.get("/api/scan-roots", { preHandler: app.requireAuth }, async (_request, reply) => {
     const rows = db.prepare("SELECT * FROM scan_roots ORDER BY sort_order, id").all() as ScanRootRow[];
-    return reply.send(rows.map((row) => toDto(db, row)));
+    const fingerprint = browseCache(db).fingerprint();
+    return reply.send(rows.map((row) => toDto(db, row, fingerprint)));
   });
 
   app.post("/api/scan-roots", { preHandler: app.requireAuth }, async (request, reply) => {

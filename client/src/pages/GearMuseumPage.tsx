@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Aperture, Camera, ExternalLink, RefreshCw, Search, X } from "lucide-react";
-import type { GearCameraEnrichmentDto, GearCameraSummaryDto, GearLensSummaryDto, GearLensTimelineDto, GearYearTotalDto, MediaDto } from "@memorylane/shared";
+import type { GearCameraSummaryDto, GearLensSummaryDto, GearLensTimelineDto, GearYearTotalDto, MediaDto } from "@memorylane/shared";
 import { api } from "../api/client";
 import { formatNumber } from "../utils/format";
 import MediaGrid from "../components/MediaGrid";
@@ -9,12 +9,11 @@ import Viewer from "../components/Viewer";
 import { useTheme, type Theme } from "../hooks/useTheme";
 import { useTranslation } from "react-i18next";
 
-// Enrichment (image/specs) comes from the separate memorylane-museum service
-// via /api/gear/* - see docs/architecture/2026-09-20-camera-lens-gear-database.md.
-// Every field beyond label/photoCount can be null (service down, or gear not
-// resolved yet), so this page always has to read fine with just raw labels -
-// no invented copy (a writeup blurb, a "Digital/Film/Compact" split, named
-// travel destinations we have no place-name data for) for data we don't
+// Camera images/specs from the memorylane-museum service are not wired up yet
+// (see docs/architecture/2026-09-20-camera-lens-gear-database.md), so every
+// field beyond label/photoCount is null and this page reads fine with just raw
+// labels - no invented copy (a writeup blurb, a "Digital/Film/Compact" split,
+// named travel destinations we have no place-name data for) for data we don't
 // actually have.
 function displayName(g: { brand: string | null; model: string | null; label: string }): string {
   if (g.brand && g.model) return `${g.brand} ${g.model}`;
@@ -68,28 +67,6 @@ const GENERIC_IMAGE: Record<"camera" | "lens", string> = { camera: "/generic-cam
 // to the generic placeholder artwork, which doesn't need it.
 function realPhotoFrame(isReal: boolean): string {
   return isReal ? "rounded-md ring-1 ring-white/15 shadow-[inset_0_0_22px_7px_rgba(0,0,0,0.35)]" : "";
-}
-
-// Module-scoped, not component state: survives navigating away and back
-// (e.g. Gear Museum -> Reports -> Gear Museum) for as long as the tab stays
-// open, so the museum service (a separate, independently-deployed process -
-// see docs/design.md) only gets hit once per distinct minPhotos value per
-// session instead of on every single page visit. Explicit refresh (the
-// button below) is the only thing that busts it.
-// Museum enrichment (camera image/specs) comes from a separate, slower,
-// externally-deployed service - cached here across mounts and only refreshed
-// on demand. The EXIF-derived fields (photoCount, dates, year breakdown) come
-// straight from the local library scan and are cheap/fast, so those are NOT
-// cached here - they're refetched fresh on every page load (see the effect
-// below), otherwise a stale in-memory snapshot can drift from the real DB
-// after a rescan and render nonsensical positions.
-const gearEnrichmentCache = new Map<string, GearCameraEnrichmentDto>();
-
-function applyEnrichment(cameras: GearCameraSummaryDto[], cache: Map<string, GearCameraEnrichmentDto>): GearCameraSummaryDto[] {
-  return cameras.map((c) => {
-    const e = cache.get(c.label);
-    return e ? { ...c, ...e } : c;
-  });
 }
 
 // Shared by both routes - GearMuseumPage (grid) and GearTimelinePage
@@ -146,23 +123,12 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
   }, []);
 
   // Always fresh on load - EXIF data is local and fast, and a stale snapshot
-  // here would silently drift from the real DB after a rescan. Enrichment
-  // (image/specs) is applied from the cache immediately, then backfilled for
-  // any camera this cache hasn't seen yet - that part stays cheap without
-  // ever refetching data that's actually already stale-free.
+  // here would silently drift from the real DB after a rescan.
   useEffect(() => {
     let cancelled = false;
     if (!settingsReady) return;
     void api.gear.cameras(minPhotos).then((data) => {
-      if (cancelled) return;
-      setCameras(applyEnrichment(data, gearEnrichmentCache));
-      const missing = data.map((c) => c.label).filter((label) => !gearEnrichmentCache.has(label));
-      if (missing.length === 0) return;
-      void api.gear.enrichCameras(missing).then((enrichment) => {
-        if (cancelled) return;
-        for (const [label, e] of Object.entries(enrichment)) gearEnrichmentCache.set(label, e);
-        setCameras((prev) => (prev ? applyEnrichment(prev, gearEnrichmentCache) : prev));
-      });
+      if (!cancelled) setCameras(data);
     });
     return () => {
       cancelled = true;
@@ -186,15 +152,7 @@ function GearPage({ mode }: { mode: "grid" | "timeline" }) {
   const handleRefresh = () => {
     setRefreshing(true);
     void Promise.all([
-      api.gear.cameras(minPhotos).then((data) => {
-        setCameras(applyEnrichment(data, gearEnrichmentCache));
-        // Explicit refresh forces the (slower) museum enrichment to redo its
-        // lookup for every camera currently shown, not just newly-seen ones.
-        return api.gear.enrichCameras(data.map((c) => c.label)).then((enrichment) => {
-          for (const [label, e] of Object.entries(enrichment)) gearEnrichmentCache.set(label, e);
-          setCameras((prev) => (prev ? applyEnrichment(prev, gearEnrichmentCache) : prev));
-        });
-      }),
+      api.gear.cameras(minPhotos).then(setCameras),
       api.gear.yearTotals().then(setYearTotals),
       ...(timelineKind === "lens" ? [api.gear.lensTimeline(minPhotos).then(setTimelineLenses)] : []),
     ]).finally(() => setRefreshing(false));

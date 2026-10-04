@@ -30,4 +30,34 @@ describe("moments routes", () => {
       await t.close();
     }
   });
+
+  it("caches the scan, rebuilds when the library changes, and re-rolls samples on refresh", async () => {
+    const t = await createTestApp();
+    try {
+      const root = seedScanRoot(t.db);
+      const folder = seedFolder(t.db, root, "/library");
+      const exif = t.db.prepare("INSERT INTO media_exif (media_id, captured_at_precise, tags_json, exiftool_version) VALUES (?, ?, '{}', 'test')");
+      const add = (date: string, index: number) => exif.run(seedMedia(t.db, folder, root, { filename: `${date}-${index}.jpg` }), `${date}T${String(10 + index).padStart(2, "0")}:00:00`);
+      for (let index = 0; index < 10; index += 1) add("2024-05-01", index);
+      const headers = { cookie: t.cookie };
+      const get = async (url: string) => (await t.app.inject({ method: "GET", url, headers })).json();
+      const ids = (summary: { years: { moments: { samples: { id: number }[] }[] }[] }) => summary.years[0].moments[0].samples.map((s) => s.id);
+
+      const first = await get("/api/moments");
+      expect(first.years[0].mediaCount).toBe(10);
+      expect(ids(await get("/api/moments"))).toEqual(ids(first));
+
+      add("2024-05-01", 10);
+      expect((await get("/api/moments")).years[0].mediaCount).toBe(11);
+
+      const refreshed = await get("/api/moments?refresh=1");
+      expect(refreshed.years[0].mediaCount).toBe(11);
+      expect(ids(refreshed)).toHaveLength(5);
+
+      const timeline = await get("/api/timeline?refresh=1");
+      expect(timeline.years[0].months[0].mediaCount).toBe(11);
+    } finally {
+      await t.close();
+    }
+  });
 });
