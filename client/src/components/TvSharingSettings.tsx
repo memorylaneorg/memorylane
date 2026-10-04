@@ -30,20 +30,37 @@ export default function TvSharingSettings() {
     const number = (value: number, digits = 0) => new Intl.NumberFormat(i18n.resolvedLanguage, {maximumFractionDigits:digits}).format(value);
     const [status, setStatus] = useState<TvSharingStatusDto | null>(null), [settings, setSettings] = useState<TvSharingSettingsDto | null>(null), [folders, setFolders] = useState<Folder[]>([]), [busy, setBusy] = useState(false), [error, setError] = useState(''), [saved, setSaved] = useState(false);
     const [collections, setCollections] = useState<CollectionDto[]>([]);
-    useEffect(() => { let active = true; void Promise.all([api.tvSharing.get(), api.tvSharing.folders(), api.collections.list()]).then(([s, f, c]) => { if (active) {
-        setStatus(s);
-        setSettings(s.settings);
-        setFolders(f);
-        setCollections(c);
-    } }).catch(e => { if (active)
-        setError(String(e)); }); return () => { active = false; }; }, []);
+    const [loadAttempt, setLoadAttempt] = useState(0);
+    const [loadingFolders, setLoadingFolders] = useState(true), [loadingCollections, setLoadingCollections] = useState(true);
+    const [loadErrors, setLoadErrors] = useState<{settings?:string;folders?:string;collections?:string}>({});
     useEffect(() => {
       let active = true;
-      const timer = setInterval(() => { void api.tvSharing.get().then(next => {
+      setLoadErrors({}); setLoadingFolders(true); setLoadingCollections(true);
+      const failed = (key: 'settings' | 'folders' | 'collections', cause: unknown) => {
+        if (active) setLoadErrors(old => ({...old,[key]:cause instanceof Error ? cause.message : String(cause)}));
+      };
+      void api.tvSharing.get().then(s => {
+        if (active) { setStatus(s); setSettings(old => old ?? s.settings); }
+      }).catch(e => failed('settings',e));
+      void api.tvSharing.folders().then(f => { if (active) setFolders(f); })
+        .catch(e => failed('folders',e)).finally(() => { if (active) setLoadingFolders(false); });
+      void api.collections.list().then(c => { if (active) setCollections(c); })
+        .catch(e => failed('collections',e)).finally(() => { if (active) setLoadingCollections(false); });
+      return () => { active = false; };
+    }, [loadAttempt]);
+    const hasStatus = status !== null;
+    useEffect(() => {
+      if (!hasStatus) return;
+      let active = true;
+      let timer: ReturnType<typeof setTimeout>;
+      const poll = () => { void api.tvSharing.get().then(next => {
         if (active) { setRefreshFailed(false); setStatus(old => old ? {...old, runtime:next.runtime, diagnostics:next.diagnostics} : next); }
-      }).catch(() => { if (active) setRefreshFailed(true); }); }, 3000);
-      return () => { active = false; clearInterval(timer); };
-    }, []);
+      }).catch(() => { if (active) setRefreshFailed(true); }).finally(() => {
+        if (active) timer = setTimeout(poll, 3000);
+      }); };
+      timer = setTimeout(poll, 3000);
+      return () => { active = false; clearTimeout(timer); };
+    }, [hasStatus]);
     const dirty = !!settings && !!status && settingsKey(settings) !== settingsKey(status.settings);
     function change(patch: Partial<TvSharingSettingsDto>) { setSettings(s => s ? { ...s, ...patch } : s); setSaved(false); }
     async function save() { if (!settings || !dirty || busy)
@@ -97,6 +114,11 @@ export default function TvSharingSettings() {
  <p className="text-sm text-muted">{t('tvSharing.help')}</p>
  <p className="text-sm text-muted">{t('tvSharing.privacy')}</p>
  {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+ {!settings && !loadErrors.settings && <p role="status" className="text-sm text-muted">{t('tvSharing.loadingSettings')}</p>}
+ {Object.entries(loadErrors).length > 0 && <div role="alert" className="space-y-1 text-sm text-red-600">
+ {Object.entries(loadErrors).map(([key,message])=><p key={key}>{t(`tvSharing.loadFailed${key[0].toUpperCase()+key.slice(1)}`)} {message}</p>)}
+ <button type="button" className="underline" onClick={()=>setLoadAttempt(value=>value+1)}>{t('common.retry')}</button>
+ </div>}
  {settings && status && <>
  <label className="flex items-center gap-2"><input type="checkbox" checked={settings.enabled} disabled={busy} onChange={e => change({ enabled: e.target.checked })}/>{t('tvSharing.enabled')}</label>
  <div className="flex flex-wrap gap-4">
@@ -128,8 +150,8 @@ export default function TvSharingSettings() {
  </details>
  {storage && storage.failures.some(f=>f.code!=='unknown') && <details><summary className="cursor-pointer text-sm">{t('previewUpgrade.failureDetails')}</summary><ul className="mt-2 space-y-1 text-sm">{storage.failures.filter(f=>f.code!=='unknown').map(f=><li key={f.code}>{t(failureLabels[f.code] ?? failureLabels.unknown)}: {number(f.count)}</li>)}</ul></details>}
  </section>
- <fieldset disabled={busy}><legend className="font-medium">{t('tvSharing.folders')}</legend><p className="text-sm text-muted">{t('tvSharing.future')}</p><ul className="mt-2 max-h-72 overflow-auto">{folders.map(f => <FolderChoice key={f.id} folder={f} selected={settings.folders} onChange={v => change({ folders: v })} disabled={busy}/>)}</ul><p className="mt-2 text-sm">{t('tvSharing.selected', { count: settings.folders.length })}</p><button type="button" className="text-sm underline" onClick={() => change({ folders: [] })}>{t('tvSharing.clear')}</button></fieldset>
- <fieldset disabled={busy}><legend className="font-medium">{t('collections.shared')}</legend><p className="text-sm text-muted">{t('tvSharing.collectionsTip')}</p><ul className="mt-2 max-h-60 overflow-auto">{collections.map(c=><li key={c.id}><label className="flex items-center gap-2 py-1"><input type="checkbox" checked={(settings.collections??[]).includes(c.id)} onChange={e=>change({collections:e.target.checked?[...(settings.collections??[]),c.id]:(settings.collections??[]).filter(id=>id!==c.id)})}/>{c.builtin?t('navigation.favorites'):c.name}</label></li>)}</ul><button type="button" className="mt-2 text-sm underline" onClick={()=>change({collections:[]})}>{t('collections.clearShared')}</button></fieldset>
+ <fieldset disabled={busy || loadingFolders || !!loadErrors.folders}><legend className="font-medium">{t('tvSharing.folders')}</legend><p className="text-sm text-muted">{t('tvSharing.future')}</p>{loadingFolders && <p role="status" className="text-sm text-muted">{t('common.loading')}</p>}<ul className="mt-2 max-h-72 overflow-auto">{folders.map(f => <FolderChoice key={f.id} folder={f} selected={settings.folders} onChange={v => change({ folders: v })} disabled={busy}/>)}</ul><p className="mt-2 text-sm">{t('tvSharing.selected', { count: settings.folders.length })}</p><button type="button" className="text-sm underline" onClick={() => change({ folders: [] })}>{t('tvSharing.clear')}</button></fieldset>
+ <fieldset disabled={busy || loadingCollections || !!loadErrors.collections}><legend className="font-medium">{t('collections.shared')}</legend><p className="text-sm text-muted">{t('tvSharing.collectionsTip')}</p>{loadingCollections && <p role="status" className="text-sm text-muted">{t('common.loading')}</p>}<ul className="mt-2 max-h-60 overflow-auto">{collections.map(c=><li key={c.id}><label className="flex items-center gap-2 py-1"><input type="checkbox" checked={(settings.collections??[]).includes(c.id)} onChange={e=>change({collections:e.target.checked?[...(settings.collections??[]),c.id]:(settings.collections??[]).filter(id=>id!==c.id)})}/>{c.builtin?t('navigation.favorites'):c.name}</label></li>)}</ul><button type="button" className="mt-2 text-sm underline" onClick={()=>change({collections:[]})}>{t('collections.clearShared')}</button></fieldset>
  <div><label className="flex items-center gap-2"><input type="checkbox" disabled={busy} checked={settings.momentsHighlights ?? false} onChange={e=>change({momentsHighlights:e.target.checked})}/>{t('tvSharing.momentsHighlights')}</label><p className="mt-1 text-sm text-muted">{t('tvSharing.momentsHighlightsHelp')}</p></div>
  <details><summary>{t('tvSharing.advanced')}</summary><label className="mt-2 flex items-center gap-2 text-sm">{t('tvSharing.port')}<input className={`${input} w-24`} disabled={busy} type="number" min={1024} max={65535} value={settings.port} onChange={e => change({ port: Number(e.target.value) })}/></label></details>
  <div className="flex flex-wrap items-center gap-3">

@@ -1,4 +1,5 @@
 import type {
+  DirectoryBrowseDto, ApplePhotoPreparationDto,
   CollectionDto, CollectionId,
   TvSharingSettingsDto,
   TvSharingStatusDto,
@@ -170,6 +171,12 @@ export const api = {
     emptyTrash: (id: number) => request<{ ok: true }>(`/api/cleanup/trash/${id}`, { method: "DELETE", body: JSON.stringify({ confirm: true }) }),
   },
   plugins: {
+    selectApplePhoto: (rootId: number, uuid: string) => request<{mediaId: number}>(`/api/plugins/apple-photos/roots/${rootId}/select`, { method: "POST", body: JSON.stringify({uuid}) }),
+    applePreparation: () => request<ApplePhotoPreparationDto>("/api/plugins/apple-photos/preparation"),
+    configureApplePreparation: (settings: {paused?: boolean; cacheMiB?: number}) => request<ApplePhotoPreparationDto>("/api/plugins/apple-photos/preparation", {method: "PUT", body: JSON.stringify(settings)}),
+    startApplePreparation: () => request<ApplePhotoPreparationDto>("/api/plugins/apple-photos/preparation/start", {method: "POST"}),
+    retryApplePreparation: () => request<ApplePhotoPreparationDto>("/api/plugins/apple-photos/preparation/retry", {method: "POST"}),
+    clearApplePreparation: () => request<ApplePhotoPreparationDto>("/api/plugins/apple-photos/preparation/cache", {method: "DELETE"}),
     list: () => request<PluginDto[]>("/api/plugins"),
     setApplePhotosEnabled: (enabled: boolean) => request<PluginDto>("/api/plugins/apple-photos", { method: "PUT", body: JSON.stringify({ enabled }) }),
     applePhotosHealth: () => request<{ status: "ready" }>("/api/plugins/apple-photos/health"),
@@ -200,6 +207,7 @@ export const api = {
     version: () => request<VersionDto>("/api/settings/version"),
   },
   scanRoots: {
+    browseDirectories: (path?: string, offset=0) => request<DirectoryBrowseDto>("/api/scan-roots/directories?" + new URLSearchParams({...path ? {path} : {}, offset: String(offset)})),
     list: () => request<ScanRootDto[]>("/api/scan-roots"),
     create: (body: CreateScanRootRequest) => request<ScanRootDto>("/api/scan-roots", { method: "POST", body: JSON.stringify(body) }),
     update: (id: number, body: UpdateScanRootRequest) => request<ScanRootDto>(`/api/scan-roots/${id}`, { method: "PUT", body: JSON.stringify(body) }),

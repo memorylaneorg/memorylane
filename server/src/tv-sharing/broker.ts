@@ -1,3 +1,6 @@
+import { APPLE_SELECTED_SQL } from '../plugins/apple-photos/selection.js';
+import { isApplePhotosEnabled } from '../plugins/registry.js';
+import type { ApplePhotoPreparation } from '../plugins/apple-photos/preparation.js';
 import { momentHighlights, momentHighlightsRevision } from '../moments/highlights.js';
 import { DEFAULT_PREVIEW_MIB, MAX_PREVIEW_MIB } from '../media/preview-upgrades.js';
 import type { CollectionId } from '@memorylane/shared';
@@ -22,7 +25,7 @@ const browseSchema = z.object({ objectId: z.string().max(256), flag: z.enum(['Br
 const eligible = "EXISTS (SELECT 1 FROM scan_roots sr JOIN folders f ON f.scan_root_id=sr.id WHERE sr.id=media.scan_root_id AND f.id=media.parent_folder_id AND sr.enabled=1 AND sr.kind='folder' AND f.status='active') AND " + EXCLUDE_PAIRED_RAW + " AND media.status='active' AND media.media_type IN ('image','raw') AND media.thumbnail_status='done' AND (media.source_kind IS NULL OR media.source_kind!='apple-photos') AND media.id NOT IN (SELECT media_id FROM deletion_marks)";
 export class TvSharingBroker {
     private images: TvImageCache;
-    constructor(private db: Database.Database, private paths: AppPaths, private pluginEnabled: () => boolean, private upgrades?: import("../media/preview-upgrades.js").PreviewUpgrades) { this.images = new TvImageCache(paths); }
+    constructor(private db: Database.Database, private paths: AppPaths, private pluginEnabled: () => boolean, private upgrades?: import("../media/preview-upgrades.js").PreviewUpgrades, private applePreparation?: Pick<ApplePhotoPreparation, "readPath">) { this.images = new TvImageCache(paths); }
     settings(): TvSettings { const row = this.db.prepare("SELECT value FROM settings WHERE key='tvSharing'").get() as {
         value: string;
     } | undefined; try {
@@ -70,9 +73,14 @@ export class TvSharingBroker {
     clearCache() { return this.images.clear(); }
     async diagnostics() {
         const s = this.scope(), selection = this.selection();
-        const sharedPhotos = (this.db.prepare(`${s.sql} SELECT COUNT(*) AS n FROM media WHERE (${selection.sql}) AND ${eligible}`).get(...s.params, ...selection.params) as {
+        let sharedPhotos = (this.db.prepare(`${s.sql} SELECT COUNT(*) AS n FROM media WHERE (${selection.sql}) AND ${eligible}`).get(...s.params, ...selection.params) as {
             n: number;
         }).n;
+        if (this.applePreparation && isApplePhotosEnabled(this.db) && this.settings().collections.length) {
+            const memberships = this.settings().collections.map(collectionMembership);
+            const appleWhere = memberships.map(m => `(${m.sql})`).join(' OR ');
+            sharedPhotos += (this.db.prepare(`SELECT COUNT(*) n FROM media WHERE media.source_kind='apple-photos' AND (${appleWhere}) AND ${this.collectionEligible('favorites')}`).get(...memberships.flatMap(m => m.params)) as {n:number}).n;
+        }
         const previewSelection = selection;
         const remaining = (this.db.prepare(`${s.sql} SELECT COUNT(*) n FROM media WHERE (${previewSelection.sql}) AND ${eligible} AND media.media_type='raw' AND NOT EXISTS (SELECT 1 FROM preview_upgrades j WHERE j.media_id=media.id AND j.state IN ('ready','limited') AND j.fingerprint=json_array(media.absolute_path,media.file_size,media.fs_modified_at,media.orientation,1))`).get(...s.params,...previewSelection.params) as {n:number}).n;
         const previewScope = {
@@ -125,12 +133,23 @@ export class TvSharingBroker {
         if (id === 'moments-highlights') return this.settings().momentsHighlights;
         return this.settings().collections.includes(id) && new CollectionRepo(this.db).exists(id);
     }
+    private collectionEligible(collectionId: TvCollectionId): string {
+        if (collectionId === 'moments-highlights' || !this.applePreparation || !isApplePhotosEnabled(this.db)) return eligible;
+        // A completed explicit preparation is the only Apple source exposed to TV.
+        // Folder and Moments predicates remain filesystem-only.
+        return `(${eligible} OR (${APPLE_SELECTED_SQL}
+            AND EXISTS (SELECT 1 FROM scan_roots sr WHERE sr.id=media.scan_root_id AND sr.enabled=1 AND sr.kind='apple-photos')
+            AND EXISTS (SELECT 1 FROM apple_photo_preparation j WHERE j.media_id=media.id AND j.state='ready')))`;
+    }
     allowedMedia(id: number, collectionId?: TvCollectionId): MediaRow | undefined {
         if (!this.pluginEnabled() || !this.settings().enabled)
             return undefined;
         if (collectionId !== undefined && !this.collectionSelected(collectionId)) return undefined;
         const s = this.scope(), selection = collectionId === undefined ? this.selection() : this.membership(collectionId);
-        return this.db.prepare(`${s.sql} SELECT media.* FROM media WHERE media.id=? AND (${selection.sql}) AND ${eligible}`).get(...s.params, id, ...selection.params) as MediaRow | undefined;
+        const predicate = collectionId === undefined ? eligible : this.collectionEligible(collectionId);
+        const media = this.db.prepare(`${s.sql} SELECT media.* FROM media WHERE media.id=? AND (${selection.sql}) AND ${predicate}`).get(...s.params, id, ...selection.params) as MediaRow | undefined;
+        if (media?.source_kind === 'apple-photos' && !this.applePreparation?.readPath(id)) return undefined;
+        return media;
     }
     async call(pluginId: string, method: string, payload: unknown): Promise<unknown> {
         if (pluginId !== TV_PLUGIN_ID)
@@ -155,7 +174,7 @@ export class TvSharingBroker {
             const args = z.object({collectionId:tvCollectionIdSchema,start:z.number().int().min(0).max(0xffffffff),count:z.number().int().min(1).max(100),sort:z.enum(['+dc:title','-dc:title']).default('+dc:title'),mediaId:z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional()}).strict().parse(payload);
             if (!this.collectionSelected(args.collectionId)) throw Error('Not shared');
             const membership = this.membership(args.collectionId);
-            const where = `${membership.sql} AND ${eligible}${args.mediaId === undefined ? '' : ' AND media.id=?'}`;
+            const where = `${membership.sql} AND ${this.collectionEligible(args.collectionId)}${args.mediaId === undefined ? '' : ' AND media.id=?'}`;
             const params = [...membership.params, ...(args.mediaId === undefined ? [] : [args.mediaId])];
             const total = (this.db.prepare(`SELECT COUNT(*) AS n FROM media WHERE ${where}`).get(...params) as {n:number}).n;
             const title = args.collectionId === 'moments-highlights'
@@ -181,8 +200,10 @@ export class TvSharingBroker {
             const id = Number(args.id.slice(2)), media = this.allowedMedia(id, args.collectionId);
             if (!media)
                 throw Error('Not shared');
-            this.upgrades?.enqueue(media, false, 5);
-            const bytes = await this.images.get(media, args.profile, config.quality, config.cacheMiB, () => !!this.allowedMedia(id, args.collectionId));
+            const preparedSource = media.source_kind === 'apple-photos' ? this.applePreparation?.readPath(id) : undefined;
+            if (media.source_kind === 'apple-photos' && !preparedSource) throw Error('Not prepared');
+            if (media.source_kind !== 'apple-photos') this.upgrades?.enqueue(media, false, 5);
+            const bytes = await this.images.get(media, args.profile, config.quality, config.cacheMiB, () => !!this.allowedMedia(id, args.collectionId), preparedSource ?? undefined);
             if (!this.allowedMedia(id, args.collectionId))
                 throw Error('Sharing revoked');
             return { bytes: bytes.toString('base64'), contentType: 'image/jpeg' };

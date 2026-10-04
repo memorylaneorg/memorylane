@@ -1,3 +1,5 @@
+import { browseDirectory } from "./directory-browser.js";
+import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
@@ -103,6 +105,13 @@ function toDto(db: Database.Database, row: ScanRootRow, fingerprint?: string): S
 }
 
 export async function registerScanRootRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
+  app.get("/api/scan-roots/directories", {preHandler: app.requireAuth}, async (request, reply) => {
+    const query = z.object({path:z.string().min(1).max(32768).optional(),offset:z.coerce.number().int().min(0).max(1000000).default(0)}).safeParse(request.query);
+    if (!query.success) return reply.code(400).send({error:"Invalid folder request"});
+    try { return await browseDirectory(query.data.path, query.data.offset); }
+    catch { return reply.code(400).send({error:"Cannot open this folder. Check that it is available and MemoryLane has permission to read it."}); }
+  });
+
   const { db } = ctx;
 
   app.get("/api/scan-roots", { preHandler: app.requireAuth }, async (_request, reply) => {

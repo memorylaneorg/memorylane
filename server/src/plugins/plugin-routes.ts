@@ -223,7 +223,7 @@ export async function registerPluginRoutes(app: FastifyInstance, ctx: AppContext
       return reply.code(400).send({ error: "Invalid browse query" });
     }
     const { browseApplePhotos } = await import("./apple-photos/browse.js");
-    const result = browseApplePhotos(ctx.db, id, parsed.data.year ?? null, parsed.data.month ?? null, parsed.data.offset, parsed.data.limit);
+    const result = browseApplePhotos(ctx.db, id, parsed.data.year ?? null, parsed.data.month ?? null, parsed.data.offset, parsed.data.limit, mediaId => !!ctx.applePreparation?.readPath(mediaId));
     const ids = result.items.flatMap((item) => item.mediaId === null ? [] : [item.mediaId]);
     if (ids.length === 0) return reply.send(result);
     const placeholders = ids.map(() => "?").join(",");

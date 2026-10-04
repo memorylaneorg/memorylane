@@ -255,6 +255,7 @@ export interface AppleBrowseItemDto {
   mediaId: number | null;
   thumbnailVersion: number;
   available: boolean;
+  mediaType: "image" | "raw" | "video" | null;
   media?: MediaDto | null;
 }
 
@@ -853,3 +854,26 @@ export interface TvSharingStatusDto {
 
 export type CollectionId = number | "favorites";
 export interface CollectionDto { id: CollectionId; name: string; count: number; builtin: boolean; contains?: boolean }
+
+export interface ApplePhotoPreparationDto {
+  paused: boolean;
+  cacheMiB: number;
+  usageBytes: number;
+  queued: number;
+  running: number;
+  ready: number;
+  failed: number;
+  blocked: number;
+  lastError: string | null;
+  existing: number;
+  batchLimit: number;
+  helperRunning: boolean;
+}
+
+export interface DirectoryBrowseDto {
+  path: string;
+  parent: string | null;
+  folders: {name: string; path: string}[];
+  locations: {name: "home" | "computer" | "drives"; path: string}[];
+  nextOffset: number | null;
+}

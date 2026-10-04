@@ -1,3 +1,4 @@
+import ApplePhotoPreparationCard from "./ApplePhotoPreparationCard";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { ApplePhotosSyncStatusDto, PluginDto, ScanRootDto } from "@memorylane/shared";
 import { api, ApiError } from "../api/client";
@@ -46,11 +47,14 @@ export function ApplePhotosPluginPanel(props: PanelProps) {
         {!plugin.available && <span className="text-sm text-muted">{t("applePhotos.unavailablePlatform")}</span>}
       </div>
       {plugin.enabled && (
-        <div className="space-y-5 border-t border-border pt-5">
+        <details className="border-t border-border pt-5">
+          <summary className="cursor-pointer font-medium text-ink">{t("navigation.settings")}</summary>
+          <div className="mt-4 space-y-5">
           <div className="space-y-1 text-sm text-muted">
             <p>{t("applePhotos.service", { status: helperStatus ?? t("applePhotos.checking") })}</p>
             <p>{t("applePhotos.permissionHint")}</p>
           </div>
+          <ApplePhotoPreparationCard />
           <form onSubmit={onAdd} className="flex flex-wrap gap-2">
             <label className="sr-only" htmlFor="apple-photos-library-path">{t("applePhotos.path")}</label>
             <input id="apple-photos-library-path" value={libraryPath} onChange={(event) => onPathChange(event.target.value)}
@@ -84,7 +88,8 @@ export function ApplePhotosPluginPanel(props: PanelProps) {
               </div>;
             })}
           </div>
-        </div>
+          </div>
+        </details>
       )}
     </section>
   );

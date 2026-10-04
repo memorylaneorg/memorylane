@@ -118,7 +118,9 @@ export function upsertAppleAsset(
           .run(mediaId);
       }
     } else if (mediaId !== null) {
-      db.prepare("UPDATE media SET status = 'missing' WHERE id = ?").run(mediaId);
+      // Retain explicitly selected cloud identities so collection membership survives sync.
+      const selected = db.prepare("SELECT 1 FROM collection_media WHERE media_id=? UNION SELECT 1 FROM media_engagement WHERE media_id=? AND favorite=1").get(mediaId,mediaId);
+      db.prepare("UPDATE media SET status=? WHERE id=?").run(selected && !asset.hidden && !asset.in_trash ? 'active' : 'missing',mediaId);
     }
 
     db.prepare(`INSERT INTO apple_photos_assets

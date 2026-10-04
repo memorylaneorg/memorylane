@@ -379,7 +379,9 @@ export class ScannerService {
         continue;
       }
 
-      if (!entry.isFile()) continue;
+      // macOS AppleDouble resource-fork sidecars retain the original extension
+      // on NAS/external disks, but contain metadata rather than photo bytes.
+      if (!entry.isFile() || entry.name.startsWith("._")) continue;
 
       const ext = path.extname(entry.name).slice(1).toLowerCase();
       const mediaType = classifyExtension(ext);

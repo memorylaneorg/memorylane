@@ -44,13 +44,16 @@ export class TvImageCache {
             return 0;
         }
     }
-    async get(media: MediaRow, profile: 'thumbnail' | 'display', quality: '1080p' | '4k', limitMiB: number, authorized = () => true): Promise<Buffer> {
+    async get(media: MediaRow, profile: 'thumbnail' | 'display', quality: '1080p' | '4k', limitMiB: number, authorized = () => true, preparedSource?: string): Promise<Buffer> {
         if (!authorized())
             throw Error('Sharing revoked');
         const generation = this.generation;
         const dir = path.join(this.paths.dataDir, 'tv-sharing-cache');
         await fs.mkdir(dir, { recursive: true });
-        const key = createHash('sha256').update(JSON.stringify([media.id, media.file_size, media.fs_modified_at, media.thumbnail_version, profile, quality, 1])).digest('hex');
+        const preparedStat = preparedSource ? await fs.stat(preparedSource) : undefined;
+        const revision = [media.id, media.file_size, media.fs_modified_at, media.thumbnail_version, profile, quality, 1];
+        if (preparedSource) revision.push(preparedSource, preparedStat!.mtimeMs, preparedStat!.size);
+        const key = createHash('sha256').update(JSON.stringify(revision)).digest('hex');
         const file = path.join(dir, key + '.jpg');
         // Warm images never wait behind a slow original or conversion queue.
         try {
@@ -76,7 +79,7 @@ export class TvImageCache {
             const stat = await fs.statfs(dir);
             if (stat.bavail * stat.bsize < 128 * 1024 * 1024)
                 throw Error('Insufficient free space for TV image');
-            const source = profile === 'thumbnail' ? thumbnailPathForMediaId(this.paths.thumbnailsDir, media.id) : media.media_type === 'raw' ? previewPathForMediaId(this.paths.previewsDir, media.id) : media.absolute_path;
+            const source = preparedSource ?? (profile === 'thumbnail' ? thumbnailPathForMediaId(this.paths.thumbnailsDir, media.id) : media.media_type === 'raw' ? previewPathForMediaId(this.paths.previewsDir, media.id) : media.absolute_path);
             const [width, height] = profile === 'thumbnail' ? [320, 320] : quality === '4k' ? [3840, 2160] : [1920, 1080];
             const data = await this.convert(source, width, height, authorized);
             if (!authorized())

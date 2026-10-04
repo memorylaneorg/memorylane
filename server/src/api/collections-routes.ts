@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { paginationQuerySchema } from '@memorylane/shared';
 import { z } from 'zod';
 import type { AppContext } from '../context.js';
+import { buildMediaQuery } from '../query/media-query.js';
 import { CollectionRepo } from '../collections/collection-repo.js';
 import { decorateMedia } from './decorate-media.js';
 import { toMediaDto } from './mappers.js';
@@ -85,11 +86,20 @@ export async function registerCollectionRoutes(app: FastifyInstance, ctx: AppCon
             return reply.code(400).send({ error: 'Invalid request' });
         if (!repo.exists(id.data))
             return reply.code(404).send({ error: 'Collection not found' });
-        if ('mediaIds' in body.data)
-            return { added: repo.add(id.data, { kind: 'ids', ids: body.data.mediaIds }) };
+        if ('mediaIds' in body.data) {
+            const added=repo.add(id.data,{kind:'ids',ids:body.data.mediaIds});
+            const apple=body.data.mediaIds.filter(mediaId=>!!ctx.db.prepare("SELECT 1 FROM media JOIN collection_media c ON c.media_id=media.id WHERE media.id=? AND c.collection_id=? AND source_kind='apple-photos'").get(mediaId,id.data));
+            ctx.applePreparation?.enqueue(apple);
+            return {added};
+        }
         if (!ctx.db.prepare("SELECT id FROM folders WHERE id=? AND status='active'").get(body.data.folderId))
             return reply.code(404).send({ error: 'Folder not found' });
-        return { added: repo.add(id.data, { kind: 'folder', folderId: body.data.folderId, recursive: body.data.recursive }) };
+        const scope = { kind: 'folder' as const, folderId: body.data.folderId, recursive: body.data.recursive };
+        const q = buildMediaQuery({ scope });
+        const apple = ctx.db.prepare(`${q.cte} SELECT media.id FROM media ${q.joins} WHERE ${q.where} AND media.source_kind='apple-photos' AND NOT EXISTS(SELECT 1 FROM collection_media cm WHERE cm.media_id=media.id AND cm.collection_id=?)`).all(...q.bindings, id.data) as {id:number}[];
+        const added = repo.add(id.data, scope);
+        for (let offset=0; offset<apple.length; offset+=1000) ctx.applePreparation?.enqueue(apple.slice(offset,offset+1000).map(row=>row.id));
+        return { added };
     });
     app.delete('/api/collections/:id/members', auth, async (request, reply) => {
         const id = numericId.safeParse((request.params as {
