@@ -57,12 +57,13 @@ function setVersion(filePath, pattern) {
 setVersion(rootPackagePath, /"version":\s*"\d+\.\d+\.\d+"/);
 setVersion(path.join(root, "server", "package.json"), /"version":\s*"\d+\.\d+\.\d+"/);
 
-// Plugin manifests: compact single-line JSON, `"version":"X.Y.Z"` with no space.
+// Plugin manifests: most are compact single-line JSON (`"version":"X.Y.Z"`), but
+// some (tv-sharing) are pretty-printed with a space after the colon.
 const pluginsDir = path.join(root, "plugins", "optional");
 for (const entry of fs.readdirSync(pluginsDir, { withFileTypes: true })) {
   if (!entry.isDirectory()) continue;
   const manifestPath = path.join(pluginsDir, entry.name, "manifest.template.json");
-  if (fs.existsSync(manifestPath)) setVersion(manifestPath, /"version":"\d+\.\d+\.\d+"/);
+  if (fs.existsSync(manifestPath)) setVersion(manifestPath, /"version":\s*"\d+\.\d+\.\d+"/);
 }
 
 console.log(`\nDone. Rebuild before publishing: npm run build, then the usual plugins:build / desktop:installer / desktop:update-manifest sequence.`);
