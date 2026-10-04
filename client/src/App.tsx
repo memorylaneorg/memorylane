@@ -73,7 +73,10 @@ export default function App() {
         <Route path="/surprise" element={<SurprisePage />} />
         <Route path="/favorites" element={<FavoritesPage />} />
         <Route path="/cleanup" element={<CleanupPage />} />
-        <Route path="/collections" element={<HomePage />} />
+        <Route path="/collections" element={<FavoritesPage />} />
+        <Route path="/library/collections" element={<Navigate to="/collections" replace />} />
+        <Route path="/library/folders" element={<HomePage libraryOnly />} />
+        <Route path="/library/media" element={<HomePage libraryOnly initialShowAllFiles />} />
         <Route path="/tags" element={<TagsPage />} />
         <Route path="/locations" element={<Suspense fallback={<p className="text-sm text-muted">{t("pages.loadingMap")}</p>}><LocationsPage /></Suspense>} />
         <Route path="/reports" element={<ReportsPage />} />

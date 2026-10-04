@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, CalendarDays, Camera, ChevronDown, FolderOpen, History, Images, LibraryBig, LogOut, MapPinned, Search, Settings as SettingsIcon, Star, Tags, Trash2, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, CalendarDays, Camera, ChevronDown, FolderOpen, History, Images, LibraryBig, LogOut, MapPinned, Search, Settings as SettingsIcon, Star, Tags, Trash2, UserRound, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { usePluginActive } from "../utils/plugins";
 import CoreUpdateBanner from "./CoreUpdateBanner";
@@ -13,7 +13,6 @@ interface NavItem { to: string; labelKey: string; icon: LucideIcon; end?: boolea
 const browseItem: NavItem = { to: "/", labelKey: "navigation.browse", icon: FolderOpen, end: true };
 const timelineItem: NavItem = { to: "/timeline", labelKey: "navigation.timeline", icon: CalendarDays };
 const momentsItem: NavItem = { to: "/moments", labelKey: "navigation.moments", icon: Images };
-const settingsItem: NavItem = { to: "/settings", labelKey: "navigation.settings", icon: SettingsIcon };
 const peopleItem: NavItem = { to: "/people", labelKey: "navigation.people", icon: Users };
 
 // Every other plugin-backed page stays tucked in the Library dropdown
@@ -24,7 +23,6 @@ const peopleItem: NavItem = { to: "/people", labelKey: "navigation.people", icon
 // the Library dropdown entirely rather than appearing in both places.
 const libraryItems: NavItem[] = [
   { to: "/locations", labelKey: "navigation.locations", icon: MapPinned },
-  { to: "/collections", labelKey: "collections.title", icon: LibraryBig },
   { to: "/tags", labelKey: "navigation.tags", icon: Tags },
   { to: "/reports", labelKey: "navigation.reports", icon: BarChart3 },
   { to: "/gear-museum", labelKey: "navigation.gearMuseum", icon: Camera },
@@ -38,11 +36,35 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
   const peopleAvailable = usePluginActive("com.memorylane.people");
   const libraryRef = useRef<HTMLDivElement>(null);
   const libraryButtonRef = useRef<HTMLButtonElement>(null);
+  const userRef = useRef<HTMLDivElement>(null);
+  const userButtonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => { setLibraryOpen(false); }, [location.pathname]);
+  useEffect(() => { setLibraryOpen(false); setUserOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.repeat) return;
+      if (target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
+      if (document.querySelector("[data-media-viewer]")) return;
+      const destinations: Record<string, string> = { "1": "/", "2": "/timeline", "3": "/moments", "4": "/favorites", "6": "/settings", "/": "/search" };
+      if (event.key === "5") {
+        event.preventDefault();
+        setLibraryOpen(true);
+        requestAnimationFrame(() => libraryButtonRef.current?.focus());
+        return;
+      }
+      const destination = destinations[event.key];
+      if (!destination) return;
+      event.preventDefault();
+      navigate(destination);
+    };
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
+  }, [navigate]);
   useEffect(() => {
     if (!libraryOpen) return;
     const onPointer = (event: PointerEvent) => {
@@ -55,6 +77,18 @@ export default function Layout() {
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
   }, [libraryOpen]);
+  useEffect(() => {
+    if (!userOpen) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!userRef.current?.contains(event.target as Node)) setUserOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setUserOpen(false); userButtonRef.current?.focus(); }
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
+  }, [userOpen]);
 
   const handleLogout = async () => {
     await logout();
@@ -62,7 +96,7 @@ export default function Layout() {
   };
 
   const isSearchActive = location.pathname === "/search";
-  const libraryActive = libraryItems.some((item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`));
+  const libraryActive = location.pathname === "/settings" || libraryItems.some((item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`));
 
   return (
     <div className="min-h-screen bg-page text-ink">
@@ -73,14 +107,14 @@ export default function Layout() {
             <span>MemoryLane</span>
           </Link>
           <nav className="flex items-center gap-1 rounded-full border border-border bg-nav-pill p-1 text-[13px] font-medium text-nav-muted shadow-nav">
-            {[browseItem, timelineItem, momentsItem, { to: "/favorites", labelKey: "navigation.favorites", icon: Star } as NavItem, ...(peopleAvailable ? [peopleItem] : [])].map((item) => {
+            {[browseItem, timelineItem, momentsItem, { to: "/favorites", labelKey: "navigation.favorites", icon: Star } as NavItem, ...(peopleAvailable ? [peopleItem] : [])].map((item, index) => {
               const Icon = item.icon;
               return (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   end={item.end}
-                  title={t(item.labelKey)}
+                  title={index < 4 ? `${t(item.labelKey)} (${index + 1})` : t(item.labelKey)}
                   // Icon-only below sm (a full "Browse / Favorites / People /
                   // Settings" text row plus search/logout doesn't fit a
                   // phone-width screen at all - it was forcing the whole page
@@ -90,7 +124,7 @@ export default function Layout() {
                   // own sm:hidden links below.
                   className={({ isActive }) =>
                     `${item.to === "/" || item.to === "/timeline" ? "flex" : "hidden sm:flex"} size-9 items-center justify-center gap-2 rounded-full transition sm:w-auto sm:justify-start sm:px-3.5 ${
-                      isActive ? "bg-photo-shell text-white" : "hover:bg-hover-soft hover:text-ink"
+                      isActive || (item.to === "/favorites" && location.pathname.startsWith("/collections")) ? "bg-photo-shell text-white" : "hover:bg-hover-soft hover:text-ink"
                     }`
                   }
                 >
@@ -100,8 +134,8 @@ export default function Layout() {
               );
             })}
             <div ref={libraryRef} className="relative">
-              <button ref={libraryButtonRef} type="button" aria-label={t("navigation.library")} aria-expanded={libraryOpen}
-                aria-controls="library-menu" onClick={() => setLibraryOpen((open) => !open)}
+              <button ref={libraryButtonRef} type="button" aria-label={t("navigation.library")} title={`${t("navigation.library")} (5)`} aria-expanded={libraryOpen}
+                aria-controls="library-menu" onClick={() => { setLibraryOpen((open) => !open); setUserOpen(false); }}
                 className={`flex size-9 items-center justify-center gap-2 rounded-full transition sm:w-auto sm:px-3.5 ${libraryActive || libraryOpen ? "bg-photo-shell text-white" : "hover:bg-hover-soft hover:text-ink"}`}>
                 <LibraryBig aria-hidden size={15} strokeWidth={1.8} />
                 <span className="hidden sm:inline">{t("navigation.library")}</span>
@@ -116,6 +150,11 @@ export default function Layout() {
                     <Icon aria-hidden size={16} strokeWidth={1.8} />{t(item.labelKey)}
                   </NavLink>;
                 })}
+                <div className="my-1 border-t border-border" />
+                <NavLink to="/settings" onClick={() => setLibraryOpen(false)} title={`${t("navigation.settings")} (6)`}
+                  className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? "bg-accent/15 text-accent" : "hover:bg-hover"}`}>
+                  <SettingsIcon aria-hidden size={16} strokeWidth={1.8} />{t("navigation.settings")}
+                </NavLink>
                 <div className="my-1 border-t border-border sm:hidden" />
                 <NavLink to="/favorites" onClick={() => setLibraryOpen(false)}
                   className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm sm:hidden ${isActive ? "bg-accent/15 text-accent" : "hover:bg-hover"}`}>
@@ -125,47 +164,32 @@ export default function Layout() {
                   className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm sm:hidden ${isActive ? "bg-accent/15 text-accent" : "hover:bg-hover"}`}>
                   <Users aria-hidden size={16} />{t("navigation.people")}
                 </NavLink>}
-                <NavLink to="/settings" onClick={() => setLibraryOpen(false)}
-                  className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm sm:hidden ${isActive ? "bg-accent/15 text-accent" : "hover:bg-hover"}`}>
-                  <SettingsIcon aria-hidden size={16} />{t("navigation.settings")}
-                </NavLink>
               </div>}
             </div>
-            {[settingsItem].map((item) => {
-              const Icon = item.icon;
-              return <NavLink key={item.to} to={item.to} title={t(item.labelKey)}
-                className={({ isActive }) => `hidden size-9 items-center justify-center gap-2 rounded-full transition sm:flex sm:w-auto sm:px-3.5 ${isActive ? "bg-photo-shell text-white" : "hover:bg-hover-soft hover:text-ink"}`}>
-                <Icon aria-hidden size={15} strokeWidth={1.8} />
-                <span className="hidden sm:inline">{t(item.labelKey)}</span>
-              </NavLink>;
-            })}
             <Link
               to="/search"
               aria-label={t("navigation.search")}
-              title={t("navigation.search")}
+              title={`${t("navigation.search")} (/)`}
               className={`grid size-9 place-items-center rounded-full transition ${
                 isSearchActive ? "bg-photo-shell text-white" : "hover:bg-hover-soft hover:text-ink"
               }`}
             >
               <Search aria-hidden size={16} strokeWidth={1.8} />
             </Link>
-            {user && (
-              <Link
-                to="/settings"
-                title={t("navigation.signedInSettings")}
-                className="hidden px-2 text-xs text-nav-muted hover:text-ink sm:inline"
-              >
-                {user.username}
-              </Link>
-            )}
-            <button
-              onClick={handleLogout}
-              aria-label={t("navigation.logout")}
-              title={t("navigation.logout")}
-              className="grid size-9 place-items-center rounded-full text-nav-muted transition hover:bg-hover-soft hover:text-ink"
-            >
-              <LogOut aria-hidden size={15} strokeWidth={1.8} />
-            </button>
+            {user && <div ref={userRef} className="relative">
+              <button ref={userButtonRef} type="button" aria-label={user.username} title={user.username} aria-expanded={userOpen} aria-controls="user-menu"
+                onClick={() => { setUserOpen((open) => !open); setLibraryOpen(false); }}
+                className={`grid size-9 place-items-center rounded-full transition ${userOpen ? "bg-photo-shell text-white" : "text-nav-muted hover:bg-hover-soft hover:text-ink"}`}>
+                <UserRound aria-hidden size={17} strokeWidth={1.8} />
+              </button>
+              {userOpen && <div id="user-menu" className="absolute right-0 top-full z-30 mt-2 w-52 rounded-xl border border-border bg-surface p-1.5 text-ink shadow-card">
+                <div className="truncate px-3 py-2 text-sm font-medium" title={user.username}>{user.username}</div>
+                <div className="my-1 border-t border-border" />
+                <button type="button" onClick={() => void handleLogout()} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-hover">
+                  <LogOut aria-hidden size={16} strokeWidth={1.8} />{t("navigation.logout")}
+                </button>
+              </div>}
+            </div>}
           </nav>
         </div>
       </header>

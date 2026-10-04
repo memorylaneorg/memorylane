@@ -15,15 +15,22 @@ export class CollectionRepo {
     constructor(private db: Database.Database) { }
     exists(id: CollectionId): boolean { return id === 'favorites' || !!this.db.prepare('SELECT id FROM collections WHERE id=?').get(id); }
     query(id: CollectionId) {
-        const q = buildMediaQuery({ type: 'photo' }), membership = collectionMembership(id);
+        const q = buildMediaQuery({}), membership = collectionMembership(id);
         return { ...q, where: `${q.where} AND ${membership.sql}`, bindings: [...q.bindings, ...membership.params] };
     }
-    list(): CollectionDto[] {
+    list(mediaId?: number): CollectionDto[] {
         const rows = this.db.prepare('SELECT id,name FROM collections ORDER BY name COLLATE NOCASE,id').all() as {
             id: number;
             name: string;
         }[];
-        return [{ id: 'favorites' as const, name: 'Favorites' }, ...rows].map(c => ({ ...c, builtin: c.id === 'favorites', count: this.count(c.id) }));
+        return [{ id: 'favorites' as const, name: 'Favorites' }, ...rows].map(c => ({
+            ...c,
+            builtin: c.id === 'favorites',
+            count: this.count(c.id),
+            ...(mediaId === undefined ? {} : { contains: c.id === 'favorites'
+                ? !!this.db.prepare('SELECT 1 FROM media_engagement WHERE media_id=? AND favorite=1').get(mediaId)
+                : !!this.db.prepare('SELECT 1 FROM collection_media WHERE collection_id=? AND media_id=?').get(c.id, mediaId) }),
+        }));
     }
     count(id: CollectionId): number {
         const q = this.query(id);
@@ -44,7 +51,7 @@ export class CollectionRepo {
         return { items: this.db.prepare(mediaSelectSql(q, 'media.captured_date IS NULL, media.captured_date, media.filename, media.id')).all(...q.bindings, limit, offset) as MediaRow[], total: this.count(id), offset, limit };
     }
     add(id: number, scope: MediaScope): number {
-        const q = buildMediaQuery({ scope, type: 'photo' });
+        const q = buildMediaQuery({ scope });
         // One INSERT SELECT is an atomic snapshot, regardless of folder size.
         return this.db.prepare(`${q.cte} INSERT OR IGNORE INTO collection_media(collection_id,media_id) SELECT ?,media.id FROM media ${q.joins} WHERE ${q.where}`)
             .run(...(q.cte ? [q.bindings[0], id, ...q.bindings.slice(1)] : [id, ...q.bindings])).changes;

@@ -428,6 +428,8 @@ export interface HomeSummaryDto {
   archiveTitle: string;
   mediaCount: number;
   folderCount: number;
+  favoriteCount: number;
+  collectionCount: number;
   totalSizeBytes: number;
   yearSpan: number;
   // A randomly picked photo to use as the hero background - null if nothing indexed yet.
@@ -848,4 +850,4 @@ export interface TvSharingStatusDto {
 }
 
 export type CollectionId = number | "favorites";
-export interface CollectionDto { id: CollectionId; name: string; count: number; builtin: boolean }
+export interface CollectionDto { id: CollectionId; name: string; count: number; builtin: boolean; contains?: boolean }

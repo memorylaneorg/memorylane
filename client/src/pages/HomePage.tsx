@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useMatch, useNavigate } from "react-router-dom";
-import { CheckSquare, Layers, Pencil } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { CheckSquare, Layers, MoreVertical, Pencil } from "lucide-react";
 import type { FolderDto, HomeSummaryDto, MediaDto, MediaTypeFilter as MediaTypeFilterValue, OnThisDayTier, ScanRootDto } from "@memorylane/shared";
 import { api } from "../api/client";
 import FolderCard from "../components/FolderCard";
 import { AppleBrowseCard } from "../components/AppleBrowseCard";
-import CollectionsPage from "./CollectionsPage";
+import CollectionPicker from "../components/CollectionPicker";
 import InlineSlideshow from "../components/InlineSlideshow";
 import MediaGrid from "../components/MediaGrid";
 import MediaTypeFilter from "../components/MediaTypeFilter";
+import LibraryViewSwitch from "../components/LibraryViewSwitch";
 import Viewer from "../components/Viewer";
 import { useConfirm } from "../components/ConfirmDialog";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
@@ -21,9 +22,8 @@ import { useTranslation } from "react-i18next";
 type MemoryTab = "random" | "onThisDay";
 const PAGE_SIZE = 200;
 
-export default function HomePage() {
+export default function HomePage({ libraryOnly = false, initialShowAllFiles = false }: { libraryOnly?: boolean; initialShowAllFiles?: boolean }) {
   const { t } = useTranslation();
-  const collectionsTab = useMatch("/collections") !== null;
   const [folders, setFolders] = useState<FolderDto[] | null>(null);
   const [appleLibraries, setAppleLibraries] = useState<{ root: ScanRootDto; count: number; coverMediaId: number | null; thumbnailVersion: number }[]>([]);
   const [appleRootIds, setAppleRootIds] = useState<number[]>([]);
@@ -32,7 +32,7 @@ export default function HomePage() {
   const [titleDraft, setTitleDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
-  const [showAllFiles, setShowAllFiles] = useState(false);
+  const [showAllFiles, setShowAllFiles] = useState(initialShowAllFiles);
   const [libraryMedia, setLibraryMedia] = useState<MediaDto[]>([]);
   const [libraryMediaTotal, setLibraryMediaTotal] = useState(0);
   const [mediaType, setMediaType] = useState<MediaTypeFilterValue>("all");
@@ -42,6 +42,7 @@ export default function HomePage() {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [marking, setMarking] = useState(false);
+  const [libraryMenuOpen, setLibraryMenuOpen] = useState(false);
   const loadingMoreRef = useRef(false);
   const { confirm } = useConfirm();
   const editTitle = () => {
@@ -116,6 +117,14 @@ export default function HomePage() {
     if (showAllFiles) void loadLibraryMedia(mediaType);
   }, [loadLibraryMedia, mediaType, showAllFiles]);
 
+  useEffect(() => {
+    setShowAllFiles(initialShowAllFiles);
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setViewerIndex(null);
+    if (initialShowAllFiles) void loadLibraryMedia("all");
+  }, [initialShowAllFiles, loadLibraryMedia]);
+
   const stackSelected = async () => {
     setLibraryError(null);
     try {
@@ -170,7 +179,7 @@ export default function HomePage() {
   }, [libraryMedia.length, mediaType, showAllFiles]);
 
   const hasMoreLibraryMedia = showAllFiles && libraryMedia.length < libraryMediaTotal;
-  const librarySentinelRef = useInfiniteScroll(loadMoreLibraryMedia, !collectionsTab && hasMoreLibraryMedia, loadingLibraryMedia);
+  const librarySentinelRef = useInfiniteScroll(loadMoreLibraryMedia, hasMoreLibraryMedia, loadingLibraryMedia);
 
   const loadTab = useCallback(async (tab: MemoryTab) => {
     setTabLoading(true);
@@ -236,11 +245,13 @@ export default function HomePage() {
 
   const heroMetadata = summary
     ? [
-        summary.mediaCount > 0 ? t("coreBrowse.home.media", { count: summary.mediaCount }) : null,
-        summary.folderCount > 0 ? t("coreBrowse.home.folders", { count: summary.folderCount }) : null,
-        summary.yearSpan > 0 ? t("coreBrowse.home.years", { count: summary.yearSpan }) : null,
-        summary.totalSizeBytes > 0 ? formatBytes(summary.totalSizeBytes) : null,
-      ].filter((v): v is string => v !== null)
+        summary.mediaCount > 0 ? { key: "media", label: t("coreBrowse.home.media", { count: summary.mediaCount }), action: () => navigate("/library/media") } : null,
+        summary.folderCount > 0 ? { key: "folders", label: t("coreBrowse.home.folders", { count: summary.folderCount }), action: () => navigate("/library/folders") } : null,
+        { key: "favorites", label: t("homeStats.favorites", { count: summary.favoriteCount }), action: () => navigate("/favorites") },
+        { key: "collections", label: t("homeStats.collections", { count: summary.collectionCount }), action: () => navigate("/collections") },
+        summary.yearSpan > 0 ? { key: "years", label: t("coreBrowse.home.years", { count: summary.yearSpan }), action: () => navigate("/timeline") } : null,
+        summary.totalSizeBytes > 0 ? { key: "size", label: formatBytes(summary.totalSizeBytes) } : null,
+      ].filter((v): v is { key: string; label: string; action?: () => void } => v !== null)
     : [];
 
   const heroBlurb = summary?.heroMedia ? formatMemoryBlurb(summary.heroMedia) : null;
@@ -252,6 +263,7 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-10">
+      {!libraryOnly && <>
       {/* Hero card - mirrors life-archive-app's home hero, with a random
           library photo standing in for the archive's "hero.jpg". */}
       <section>
@@ -323,8 +335,10 @@ export default function HomePage() {
 
         {heroMetadata.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-x-7 gap-y-2 px-1 text-[14px] leading-[1.7] text-muted">
-            {heroMetadata.map((label) => (
-              <span key={label}>{label}</span>
+            {heroMetadata.map((item) => (
+              item.action
+                ? <button type="button" key={item.key} onClick={item.action} className="cursor-pointer">{item.label}</button>
+                : <span key={item.key}>{item.label}</span>
             ))}
           </div>
         )}
@@ -370,15 +384,15 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-4 font-serif text-2xl font-semibold text-ink">{t("pages.yourLibrary")}</h2>
-        <div role="tablist" aria-label={t("pages.yourLibrary")} className="mb-5 flex gap-2">
-          {([false, true] as const).map(isCollections => <button key={String(isCollections)} type="button" role="tab" id={isCollections ? "library-collections-tab" : "library-folders-tab"} aria-selected={collectionsTab === isCollections} aria-controls="library-panel" tabIndex={collectionsTab === isCollections ? 0 : -1} onKeyDown={event => { if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) { event.preventDefault(); const next = event.key === "Home" ? false : event.key === "End" ? true : !collectionsTab; navigate(next ? "/collections" : "/"); document.getElementById(next ? "library-collections-tab" : "library-folders-tab")?.focus(); } }} onClick={() => navigate(isCollections ? "/collections" : "/")} className={`rounded-md border px-4 py-2 text-sm font-medium ${collectionsTab === isCollections ? "border-accent bg-accent/10 text-accent" : "border-border text-muted hover:bg-hover"}`}>{t(isCollections ? "collections.title" : "pages.folders")}</button>)}
+      </>}
+
+      <section id="your-library">
+        <div className={`mb-4 flex flex-wrap items-center gap-4 ${libraryOnly ? "justify-start" : ""}`}>
+          {!libraryOnly && <h2 className="font-serif text-2xl font-semibold text-ink">{t("pages.yourLibrary")}</h2>}
+          <LibraryViewSwitch collectionCount={summary?.collectionCount ?? 0} />
         </div>
-        <div id="library-panel" role="tabpanel" aria-labelledby={collectionsTab ? "library-collections-tab" : "library-folders-tab"}>
-        {collectionsTab ? <CollectionsPage /> : <>
         <div className="sticky top-16 z-10 mb-4 bg-page">
-          <div className={selectMode ? "flex flex-col items-stretch gap-4" : "flex flex-wrap items-center justify-between gap-4"}>
+          <div className={selectMode ? "flex flex-col items-stretch gap-4" : "flex flex-wrap items-center justify-end gap-4"}>
             <div className={selectMode ? "flex w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-3" : "flex flex-wrap items-center justify-end gap-3"}>
               {selectMode ? (
                 <div className="flex flex-1 flex-wrap items-center gap-2 text-sm">
@@ -391,20 +405,22 @@ export default function HomePage() {
                     <Layers size={14} strokeWidth={1.8} />
                     {t("coreBrowse.folder.stackSelected")}
                   </button>
+                  <CollectionPicker mediaIds={[...selectedIds]} />
                   <button onClick={exitSelectMode} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">{t("coreBrowse.folder.done")}</button>
                 </div>
-              ) : (
-                <button onClick={enterSelectMode} title={t("coreBrowse.folder.selectHelp")} className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-ink hover:bg-hover">
-                  <CheckSquare size={14} strokeWidth={1.8} />
-                  {t("coreBrowse.folder.select")}
-                </button>
-              )}
+              ) : null}
               {!selectMode && <>
                 <MediaTypeFilter value={mediaType} onChange={changeMediaType} />
                 <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-muted">
                   <input type="checkbox" checked={showAllFiles} onChange={(event) => toggleAllFiles(event.target.checked)} className="cursor-pointer accent-accent" />
                   {t("coreBrowse.folder.allFiles")}
                 </label>
+                <div className="relative">
+                  <button type="button" onClick={() => setLibraryMenuOpen(open => !open)} aria-label={t("coreBrowse.folder.more")} title={t("coreBrowse.folder.more")} className="grid size-8 place-items-center rounded-md text-muted hover:bg-hover hover:text-ink"><MoreVertical size={16} strokeWidth={1.8}/></button>
+                  {libraryMenuOpen && <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-border bg-surface py-1 shadow-card">
+                    <button type="button" onClick={() => { enterSelectMode(); setLibraryMenuOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted hover:bg-hover hover:text-ink"><CheckSquare size={14} strokeWidth={1.8}/>{t("coreBrowse.folder.select")}</button>
+                  </div>}
+                </div>
               </>}
             </div>
           </div>
@@ -444,8 +460,6 @@ export default function HomePage() {
         {showAllFiles && viewerIndex !== null && (
           <Viewer items={libraryMedia} startIndex={viewerIndex} onClose={() => setViewerIndex(null)} total={libraryMediaTotal} onRequestMore={loadMoreLibraryMedia} />
         )}
-        </>}
-        </div>
       </section>
     </div>
   );

@@ -35,20 +35,22 @@ it('creates explicit snapshots, deduplicates additions and preserves membership 
         await t.close();
     }
 });
-it('excludes hidden and non-photo records, supports nonrecursive snapshots and validates mutations', async () => {
+it('includes videos, excludes hidden companion records, supports nonrecursive snapshots and validates mutations', async () => {
     const t = await createTestApp();
     try {
         const headers = { cookie: t.cookie }, root = seedScanRoot(t.db), folder = seedFolder(t.db, root, '/library'), child = seedFolder(t.db, root, '/library/child', folder);
         const visible = seedMedia(t.db, folder, root), nested = seedMedia(t.db, child, root), marked = seedMedia(t.db, folder, root), raw = seedMedia(t.db, folder, root, { media_type: 'raw' });
         t.db.prepare('UPDATE media SET raw_pair_id=? WHERE id=?').run(raw, visible);
         t.db.prepare('INSERT INTO deletion_marks(media_id) VALUES(?)').run(marked);
-        const hidden = [marked, raw, seedMedia(t.db, folder, root, { status: 'missing' }), seedMedia(t.db, folder, root, { media_type: 'video' })];
+        const video = seedMedia(t.db, folder, root, { media_type: 'video' });
+        const hidden = [marked, raw, seedMedia(t.db, folder, root, { status: 'missing' })];
         const id = (await t.app.inject({ method: 'POST', url: '/api/collections', headers, payload: { name: 'One' } })).json().id;
-        expect((await t.app.inject({ method: 'POST', url: `/api/collections/${id}/members`, headers, payload: { folderId: folder, recursive: false } })).json().added).toBe(1);
+        expect((await t.app.inject({ method: 'POST', url: `/api/collections/${id}/members`, headers, payload: { folderId: folder, recursive: false } })).json().added).toBe(2);
         expect((await t.app.inject({ method: 'POST', url: `/api/collections/${id}/members`, headers, payload: { mediaIds: hidden } })).json().added).toBe(0);
         expect((await t.app.inject({ url: `/api/collections/${id}/media`, headers })).json().items.map((m: {
             id: number;
-        }) => m.id)).toEqual([visible]);
+        }) => m.id)).toEqual([visible, video]);
+        expect((await t.app.inject({ url: `/api/collections?mediaId=${video}`, headers })).json().find((c: { id: number }) => c.id === id)).toMatchObject({ contains: true });
         expect((await t.app.inject({ method: 'POST', url: '/api/collections', headers, payload: { name: 'one' } })).statusCode).toBe(409);
         expect((await t.app.inject({ method: 'POST', url: `/api/collections/${id}/members`, headers, payload: { mediaIds: [nested], folderId: folder } })).statusCode).toBe(400);
         expect((await t.app.inject({ method: 'POST', url: '/api/collections', headers, payload: { name: ' ' } })).statusCode).toBe(400);

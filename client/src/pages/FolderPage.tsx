@@ -203,23 +203,13 @@ export default function FolderPage() {
                   <Layers size={14} strokeWidth={1.8} />
                   {t("coreBrowse.folder.stackSelected")}
                 </button>
-                <CollectionPicker key={`selection:${folderId}`} mediaIds={[...selectedIds].filter(id => media.some(m => m.id === id && m.mediaType !== "video"))} />
+                <CollectionPicker key={`selection:${folderId}`} mediaIds={[...selectedIds]} />
                 <button onClick={exitSelectMode} className="whitespace-nowrap rounded-md border border-border px-3 py-1.5 text-ink hover:bg-hover">
                   {t("coreBrowse.folder.done")}
                 </button>
               </div>
-            ) : (
-              <button
-                onClick={() => setSelectMode(true)}
-                title={t("coreBrowse.folder.selectHelp")}
-                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-ink hover:bg-hover"
-              >
-                <CheckSquare size={14} strokeWidth={1.8} />
-                {t("coreBrowse.folder.select")}
-              </button>
-            )}
+            ) : null}
             {!selectMode && <>
-            <CollectionPicker key={`folder:${folderId}`} folderId={folderId} />
             <MediaTypeFilter value={mediaType} onChange={(t) => void changeMediaType(t)} />
             <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-muted">
               <input
@@ -241,6 +231,11 @@ export default function FolderPage() {
               </button>
               {menuOpen && (
                 <div className="absolute right-0 top-full z-10 mt-1 w-56 rounded-lg border border-border bg-surface py-1 shadow-card">
+                  <button onClick={() => { setSelectMode(true); setMenuOpen(false); }} title={t("coreBrowse.folder.selectHelp")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted hover:bg-hover hover:text-ink">
+                    <CheckSquare size={14} strokeWidth={1.8} />
+                    {t("coreBrowse.folder.select")}
+                  </button>
+                  <CollectionPicker key={`folder:${folderId}`} folderId={folderId} menuItem />
                   <button
                     onClick={() => void ignoreFolder()}
                     disabled={ignoring}

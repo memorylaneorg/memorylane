@@ -122,7 +122,7 @@ export function toQueryString(params: Record<string, string | number | undefined
 
 export const api = {
   collections: {
-    list: () => request<CollectionDto[]>('/api/collections'),
+    list: (mediaId?: number) => request<CollectionDto[]>(`/api/collections${mediaId === undefined ? '' : `?mediaId=${mediaId}`}`),
     create: (name: string) => request<CollectionDto>('/api/collections', {method:'POST',body:JSON.stringify({name})}),
     rename: (id: number, name: string) => request<{ok:true}>(`/api/collections/${id}`, {method:'PATCH',body:JSON.stringify({name})}),
     delete: (id: number) => request<{ok:true}>(`/api/collections/${id}`, {method:'DELETE'}),

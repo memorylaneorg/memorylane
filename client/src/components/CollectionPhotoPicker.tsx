@@ -45,7 +45,7 @@ export default function CollectionPhotoPicker({ collectionId, onAdded, onClose }
         const [detail, children, media] = await Promise.all([
           api.folders.get(folderId), api.folders.children(folderId, 0, PAGE_SIZE),
           // Selecting photos must expose every frame, including hidden stack members.
-          api.folders.media(folderId, 0, PAGE_SIZE, false, 'photo', true),
+          api.folders.media(folderId, 0, PAGE_SIZE, false, 'all', true),
         ]);
         if (version !== generation.current) return;
         setBreadcrumbs(detail.breadcrumbs); setFolders(children.items); setFolderTotal(children.total);
@@ -66,7 +66,7 @@ export default function CollectionPhotoPicker({ collectionId, onAdded, onClose }
         const page = await api.folders.children(folderId, folders.length, PAGE_SIZE);
         if (version === generation.current) { setFolders(old => [...old, ...page.items]); setFolderTotal(page.total); }
       } else {
-        const page = await api.folders.media(folderId, photos.length, PAGE_SIZE, false, 'photo', true);
+        const page = await api.folders.media(folderId, photos.length, PAGE_SIZE, false, 'all', true);
         if (version === generation.current) { setPhotos(old => [...old, ...page.items]); setPhotoTotal(page.total); }
       }
     } catch (e) { if (version === generation.current) setError(String(e)); }
@@ -88,9 +88,9 @@ export default function CollectionPhotoPicker({ collectionId, onAdded, onClose }
   }
 
   const navigate = (id: number | null) => { if (!busy) { setFolderId(id); setMessage(''); } };
-  return <section aria-label={t('collectionPicker.title')} className="space-y-4 rounded-xl border border-border bg-surface p-4">
+  return <section aria-label={t('collectionsDetail.addItems')} className="space-y-4 rounded-xl border border-border bg-surface p-4">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h3 className="font-serif text-xl text-ink">{t('collectionPicker.title')}</h3><p className="text-sm text-muted">{t('collectionPicker.help')}</p></div>
+      <div><h3 className="font-serif text-xl text-ink">{t('collectionsDetail.addItems')}</h3><p className="text-sm text-muted">{t('collectionsDetail.pickerHelp')}</p></div>
       <button className={button} disabled={busy} onClick={onClose}>{t('common.close')}</button>
     </div>
     <nav aria-label={t('collectionPicker.folderNavigation')} className="flex flex-wrap items-center gap-2 text-sm">
@@ -105,18 +105,18 @@ export default function CollectionPhotoPicker({ collectionId, onAdded, onClose }
       {folderId !== null && <>
         <div className="flex flex-wrap items-center gap-2">
 
-          <span className="text-sm text-muted">{t('common.photos', { count: photoTotal })}</span>
+          <span className="text-sm text-muted">{t('collections.items', { count: photoTotal })}</span>
         </div>
         <MediaGrid items={photos} showFavorite={false} disabled={busy} onOpen={index => { const photo = photos[index]; if (!added.has(photo.id)) void add([photo.id]); }} captions={Object.fromEntries([...added].map(id => [id, t('collectionPicker.saved')]))}/>
 
-        {!loading && !photos.length && <p className="text-sm text-muted">{t('collectionPicker.noPhotos')}</p>}
+        {!loading && !photos.length && <p className="text-sm text-muted">{t('collectionsDetail.noItems')}</p>}
         {photos.length < photoTotal && <button className={button} disabled={busy || loading} onClick={() => void loadMore('photos')}>{t('collections.more')}</button>}
       </>}
       {loading && <p role="status" className="text-sm text-muted">{t('common.loading')}</p>}
       {!loading && folderId === null && !folders.length && <p className="text-sm text-muted">{t('coreBrowse.home.noFolders')}</p>}
     </div>
     {folderId !== null && !loading && !error && <div className="space-y-2 border-t border-border pt-3">
-      <div className="flex flex-wrap items-center gap-3"><button className={button} disabled={busy} onClick={() => void add()}>{t('collectionPicker.addFolder')}</button><label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={recursive} onChange={e => setRecursive(e.target.checked)}/>{t('collections.recursive')}</label></div>
+      <div className="flex flex-wrap items-center gap-3"><button className={button} disabled={busy} onClick={() => void add()}>{t('collectionsDetail.addFolder')}</button><label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={recursive} onChange={e => setRecursive(e.target.checked)}/>{t('collections.recursive')}</label></div>
       <p className="text-sm text-muted">{t('collections.snapshot')}</p>
     </div>}
   </section>;

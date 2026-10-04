@@ -36,6 +36,6 @@ export default function CollectionCard({ collection, disabled, onOpen }: {
       <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 truncate p-4 font-serif text-2xl font-semibold text-white">{name}</div>
     </div>
-    <div className="p-4 text-sm text-muted">{t('common.photos', { count: collection.count })}</div>
+    <div className="p-4 text-sm text-muted">{t('collections.items', { count: collection.count })}</div>
   </button>;
 }

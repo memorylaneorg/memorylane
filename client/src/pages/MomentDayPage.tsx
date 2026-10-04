@@ -80,8 +80,8 @@ export default function MomentDayPage() {
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <Link to={`/moments${detection && detection !== "balanced" ? `?detection=${detection}` : ""}`} className="text-sm text-accent hover:underline">{t("moments.back")}</Link>
-        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
+        <nav className="mb-2 text-sm text-muted" aria-label={t("moments.title")}><Link to={`/moments${detection && detection !== "balanced" ? `?detection=${detection}` : ""}`} className="hover:text-ink">{t("moments.title")}</Link><span> / {label}</span></nav>
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <h1 className="font-serif text-3xl font-semibold text-ink">{label}</h1>
             <p className="mt-1 text-sm text-muted">{t("moments.dayTimeline")}</p>

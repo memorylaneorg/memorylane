@@ -60,8 +60,8 @@ export default function TimelineMonthPage() {
   return (
     <div className="flex flex-col gap-5">
       <header>
-        <Link to="/timeline" className="text-sm text-accent hover:underline">{t("timeline.back")}</Link>
-        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
+        <nav className="mb-2 text-sm text-muted" aria-label={t("timeline.title")}><Link to="/timeline" className="hover:text-ink">{t("timeline.title")}</Link><span> / {label}</span></nav>
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h1 className="font-serif text-3xl font-semibold text-ink">{label}</h1>
           {items !== null && <p className="text-sm text-muted">{t("timeline.items", { count: total })}</p>}
         </div>

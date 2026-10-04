@@ -214,11 +214,35 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
     navigate(`/folder/${current.parentFolderId}`);
   }, [current, navigate, onClose]);
 
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+    } else {
+      overlayRef.current?.requestFullscreen().catch(() => {
+        // The viewer still covers the viewport if the browser denies fullscreen.
+      });
+    }
+  }, []);
+
+  const isFavorite = current ? (favoriteOverrides[current.id] ?? current.favorite) : false;
+  const toggleFavorite = useCallback(async () => {
+    if (!current) return;
+    const next = !(favoriteOverrides[current.id] ?? current.favorite);
+    setFavoriteOverrides((prev) => ({ ...prev, [current.id]: next }));
+    try {
+      await api.media.setFavorite(current.id, next);
+    } catch {
+      setFavoriteOverrides((prev) => ({ ...prev, [current.id]: !next }));
+    }
+  }, [current, favoriteOverrides]);
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      const isEditing = !!target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
-      if (e.key === "Escape") onClose();
+      const isEditing = !!target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+      if (e.key === "Escape") {
+        if (document.fullscreenElement) void document.exitFullscreen(); else onClose();
+      }
       else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && isEditing) return;
       else if (e.key === "ArrowRight") goNext();
       else if (e.key === "ArrowLeft") goPrev();
@@ -231,6 +255,18 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
       } else if (!isEditing && !e.ctrlKey && !e.metaKey && current?.mediaType !== "video" && !livePlaying && e.key === "0") {
         e.preventDefault();
         resetZoom();
+      }
+      else if (!isEditing && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        void toggleFavorite();
+      }
+      else if (!isEditing && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        setShowInfo((shown) => !shown);
+      }
+      else if (!isEditing && !e.ctrlKey && !e.metaKey && e.key === "Enter") {
+        e.preventDefault();
+        toggleFullscreen();
       }
       else if (e.key === " ") {
         // Don't hijack Space when a button/input (or a focused video, whose
@@ -245,7 +281,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [current?.mediaType, goNext, goPrev, livePlaying, onClose, resetZoom, zoomIn, zoomOut]);
+  }, [current?.mediaType, goNext, goPrev, livePlaying, onClose, resetZoom, toggleFavorite, toggleFullscreen, zoomIn, zoomOut]);
 
   // A video playing (standalone, or a Live Photo's tapped-into video) drives
   // its own advance via onEnded below instead of the fixed interval - cutting
@@ -260,17 +296,6 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [playing, isVideoActive, goNext]);
-
-  const toggleFullscreen = useCallback(() => {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
-    } else {
-      overlayRef.current?.requestFullscreen().catch(() => {
-        // Fullscreen can be denied (no user gesture, unsupported, iframe restrictions) - the
-        // overlay already covers the whole viewport, so the slideshow still works fine without it.
-      });
-    }
-  }, []);
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -306,17 +331,6 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
   };
 
   if (!current) return null;
-
-  const isFavorite = favoriteOverrides[current.id] ?? current.favorite;
-  const toggleFavorite = async () => {
-    const next = !isFavorite;
-    setFavoriteOverrides((prev) => ({ ...prev, [current.id]: next }));
-    try {
-      await api.media.setFavorite(current.id, next);
-    } catch {
-      setFavoriteOverrides((prev) => ({ ...prev, [current.id]: !next }));
-    }
-  };
 
   // Jumps to Reports pre-filtered on exactly one EXIF value clicked in the
   // info panel below (only ever one at a time - "what else did I shoot with
@@ -381,6 +395,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
   return (
     <div
       ref={overlayRef}
+      data-media-viewer
       className="fixed inset-0 z-[100] flex bg-overlay/97"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -402,6 +417,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
             className={`grid place-items-center ${controlButtonClass}`}
             onClick={toggleFavorite}
             aria-label={isFavorite ? t("viewer.unfavorite") : t("viewer.favorite")}
+            title={`${isFavorite ? t("viewer.unfavorite") : t("viewer.favorite")} (F)`}
             aria-pressed={isFavorite}
           >
             <Star
@@ -410,6 +426,7 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
               className={isFavorite ? "fill-amber-400 text-amber-400" : "text-white"}
             />
           </button>
+          <CollectionPicker key={current.id} mediaIds={[current.id]} iconOnly />
           {aiSearchAvailable && (
             <button
               className={controlButtonClass}
@@ -575,10 +592,10 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
                 </button>
               </span>
             )}
-            <button onClick={() => setShowInfo((s) => !s)} className="text-white">
+            <button onClick={() => setShowInfo((s) => !s)} title={`${t("viewer.info")} (I)`} className="text-white">
               Info
             </button>
-            <button onClick={toggleFullscreen} className="text-white">
+            <button onClick={toggleFullscreen} title={`${isFullscreen ? t("viewer.exitFullscreen") : t("viewer.fullscreen")} (Enter)`} className="text-white">
               {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             </button>
           </div>
@@ -684,7 +701,6 @@ export default function Viewer({ items, startIndex, onClose, autoPlay = false, t
           {current.durationSeconds != null && <div>Duration: {formatDuration(current.durationSeconds)}</div>}
           <div className="break-all text-white/70">Path: {current.absolutePath}</div>
           <TagEditor mediaId={current.id} />
-          {current.mediaType !== "video" && <CollectionPicker key={current.id} mediaIds={[current.id]} />}
           <button
             onClick={goToFolder}
             className="mt-1 self-start text-left text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"

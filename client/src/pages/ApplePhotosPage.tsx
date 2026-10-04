@@ -8,6 +8,7 @@ import Viewer from "../components/Viewer";
 import { invertVisibleSelection } from "../utils/selection";
 import { useConfirm } from "../components/ConfirmDialog";
 import { useTranslation } from "react-i18next";
+import { CheckSquare, MoreVertical } from "lucide-react";
 
 const PAGE_SIZE = 100;
 export default function ApplePhotosPage() {
@@ -25,6 +26,7 @@ export default function ApplePhotosPage() {
   const [viewerItem, setViewerItem] = useState<MediaDto | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [moreOpen, setMoreOpen] = useState(false);
   const { confirm } = useConfirm();
 
   useEffect(() => {
@@ -101,7 +103,7 @@ export default function ApplePhotosPage() {
     </div>
     {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
     {items.some((item) => item.mediaId !== null) && <div className="flex flex-wrap items-center gap-2 text-sm">
-      {!selectMode ? <button onClick={() => setSelectMode(true)} className="rounded-md border border-border px-3 py-1.5">{t("appleBrowse.select")}</button> : <>
+      {!selectMode ? <div className="relative ml-auto"><button type="button" onClick={() => setMoreOpen(open => !open)} aria-label={t("coreBrowse.folder.more")} title={t("coreBrowse.folder.more")} className="grid size-8 place-items-center rounded-md text-muted hover:bg-hover hover:text-ink"><MoreVertical size={16}/></button>{moreOpen && <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-border bg-surface py-1 shadow-card"><button type="button" onClick={() => { setSelectMode(true); setMoreOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted hover:bg-hover hover:text-ink"><CheckSquare size={14}/>{t("appleBrowse.select")}</button></div>}</div> : <>
         <span>{t("appleBrowse.selected", { count: selectedIds.size })}</span>
         <button onClick={() => setSelectedIds(new Set(items.flatMap((item) => item.mediaId === null ? [] : [item.mediaId])))} className="rounded-md border border-border px-3 py-1.5">{t("appleBrowse.selectShown", { count: items.filter((item) => item.mediaId !== null).length })}</button>
         <button onClick={() => setSelectedIds(new Set())} className="rounded-md border border-border px-3 py-1.5">{t("appleBrowse.none")}</button>

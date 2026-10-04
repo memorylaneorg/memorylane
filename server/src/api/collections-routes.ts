@@ -15,7 +15,15 @@ const duplicate = (error: unknown) => (error as {
 })?.code === 'SQLITE_CONSTRAINT_UNIQUE';
 export async function registerCollectionRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
     const repo = new CollectionRepo(ctx.db), auth = { preHandler: app.requireAuth };
-    app.get('/api/collections', auth, async () => repo.list());
+    app.get('/api/collections', auth, async (request, reply) => {
+        const raw = (request.query as { mediaId?: string }).mediaId;
+        if (raw === undefined)
+            return repo.list();
+        const mediaId = numericId.safeParse(raw);
+        if (!mediaId.success)
+            return reply.code(400).send({ error: 'Invalid media ID' });
+        return repo.list(mediaId.data);
+    });
     app.post('/api/collections', auth, async (request, reply) => {
         const body = nameBody.safeParse(request.body);
         if (!body.success)

@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import type { MediaDto, MediaTypeFilter as MediaTypeFilterValue } from "@memorylane/shared";
 import { api } from "../api/client";
 import MediaGrid from "../components/MediaGrid";
-import MediaTypeFilter from "../components/MediaTypeFilter";
 import Viewer from "../components/Viewer";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import { useTranslation } from "react-i18next";
+import CollectionsPage from "./CollectionsPage";
+import LibraryViewSwitch from "../components/LibraryViewSwitch";
 
 const PAGE_SIZE = 200;
 
 export default function FavoritesPage() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const collectionsTab = location.pathname.startsWith("/collections");
   const [media, setMedia] = useState<MediaDto[] | null>(null);
   const [mediaTotal, setMediaTotal] = useState(0);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [mediaType, setMediaType] = useState<MediaTypeFilterValue>("all");
+  const [collectionCount, setCollectionCount] = useState(0);
   const loadingMoreRef = useRef(false);
 
   const load = useCallback((type: MediaTypeFilterValue) => {
@@ -27,13 +32,8 @@ export default function FavoritesPage() {
 
   useEffect(() => {
     load("all");
+    void api.collections.list().then((rows) => setCollectionCount(rows.filter((row) => !row.builtin).length));
   }, [load]);
-
-  const changeMediaType = (type: MediaTypeFilterValue) => {
-    setMediaType(type);
-    setMedia(null);
-    load(type);
-  };
 
   const loadMore = useCallback(async () => {
     if (loadingMoreRef.current || media === null) return;
@@ -53,10 +53,9 @@ export default function FavoritesPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="font-serif text-2xl font-semibold text-ink">{t("pages.favorites")}</h1>
-        <MediaTypeFilter value={mediaType} onChange={changeMediaType} />
-      </div>
+      <LibraryViewSwitch collectionCount={collectionCount} />
+
+      {collectionsTab ? <CollectionsPage onCollectionCountChange={setCollectionCount} /> : <>
 
       {media === null && <p className="text-sm text-muted">{t("common.loading")}</p>}
       {media && media.length === 0 && (
@@ -87,6 +86,7 @@ export default function FavoritesPage() {
           onRequestMore={loadMore}
         />
       )}
+      </>}
     </div>
   );
 }

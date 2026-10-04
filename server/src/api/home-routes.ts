@@ -18,6 +18,10 @@ export async function registerHomeRoutes(app: FastifyInstance, ctx: AppContext):
     const folderCount = (
       db.prepare("SELECT COUNT(*) as c FROM folders WHERE status = 'active'").get() as { c: number }
     ).c;
+    const favoriteCount = (
+      db.prepare(`SELECT COUNT(*) as c FROM media JOIN media_engagement e ON e.media_id=media.id WHERE e.favorite=1 AND media.status='active' AND ${ACTIVE_SOURCE_SQL} AND ${UNMARKED_MEDIA_SQL}`).get() as { c: number }
+    ).c;
+    const collectionCount = (db.prepare("SELECT COUNT(*) as c FROM collections").get() as { c: number }).c;
     const totalSizeBytes = (
       db.prepare(`SELECT COALESCE(SUM(file_size), 0) as s FROM media WHERE status = 'active' AND ${ACTIVE_SOURCE_SQL} AND ${UNMARKED_MEDIA_SQL}`).get() as {
         s: number;
@@ -45,6 +49,8 @@ export async function registerHomeRoutes(app: FastifyInstance, ctx: AppContext):
       archiveTitle: new SettingsRepo(db).getAll().archiveTitle,
       mediaCount,
       folderCount,
+      favoriteCount,
+      collectionCount,
       totalSizeBytes,
       yearSpan,
       heroMedia,
