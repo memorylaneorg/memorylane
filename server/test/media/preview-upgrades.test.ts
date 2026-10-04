@@ -349,3 +349,34 @@ it('reports only current Favorites after replacing folder shares, including work
   expect(d.previews).toMatchObject({queued:2,ready:0,failed:0}); // Changed originals need a new attempt.
  }finally {await queue.close();await t.close();}
 });
+
+it('prepares highlights in advance, counts pending work, honors pause and preserves completed previews',async()=>{
+ const t=await createTestApp();await t.ctx.previewUpgrades!.close();
+ const queue=new PreviewUpgrades(t.db,t.ctx.paths);
+ const broker=new TvSharingBroker(t.db,t.ctx.paths,()=>true,queue);
+ const {TvImageCache}=await import('../../src/tv-sharing/images.js');
+ const image=vi.spyOn(TvImageCache.prototype,'get').mockResolvedValue(Buffer.from('jpeg'));
+ try{
+  const root=seedScanRoot(t.db),folder=seedFolder(t.db,root,'/library');
+  for(let i=0;i<10;i++){
+   const id=seedMedia(t.db,folder,root,{media_type:'raw'});
+   t.db.prepare("INSERT INTO media_exif(media_id,captured_at_precise,tags_json,exiftool_version) VALUES (?,'2024-01-01T12:00:00','{}','test')").run(id);
+  }
+  broker.save({enabled:true,address:'192.168.1.2',momentsHighlights:true,upgradePreviews:false});
+  queue.setEligibility(id=>!!broker.allowedMedia(id));queue.setEnabled(()=>broker.settings().upgradePreviews);
+  broker.preparePreviews();expect(queue.summary().queued).toBe(0);
+  expect((await broker.diagnostics()).previews?.queued).toBe(5);
+  broker.setPreviewProcessing(true);broker.preparePreviews();expect(queue.summary().queued).toBe(5);
+  const {items}=await broker.call('com.memorylane.tv-sharing','tv.collection',{collectionId:'moments-highlights',start:0,count:100}) as {items:{id:number}[]};
+  const request=(id:number)=>broker.call('com.memorylane.tv-sharing','tv.image',{id:`p:${id}`,profile:'display',collectionId:'moments-highlights'});
+  await broker.call('com.memorylane.tv-sharing','tv.image',{id:`c:moments-highlights:p:${items[0].id}`,profile:'display'});expect(queue.status(items[0].id)).toBe('queued');
+  expect(t.db.prepare('SELECT priority FROM preview_upgrades WHERE media_id=?').get(items[0].id)).toEqual({priority:5});
+  t.db.prepare("UPDATE preview_upgrades SET state='ready' WHERE media_id=?").run(items[1].id);
+  broker.preparePreviews();expect(queue.status(items[1].id)).toBe('ready');expect(queue.summary().queued).toBe(4);
+  broker.setPreviewProcessing(false);broker.preparePreviews();expect(queue.summary().queued).toBe(4);
+  broker.save({momentsHighlights:false,enabled:false});
+  expect(queue.summary().queued).toBe(0);expect(queue.status(items[1].id)).toBe('ready');
+  broker.save({enabled:true,folders:[{id:folder,recursive:true}]});
+  await expect(request(items[0].id)).rejects.toThrow('Not shared');
+ }finally{image.mockRestore();await queue.close();await t.close();}
+});

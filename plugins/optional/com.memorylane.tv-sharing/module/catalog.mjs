@@ -61,7 +61,7 @@ export function createCatalogAdapter(callCore) {
         if (!item) throw Error('Not shared');
         return {item,original:`p:${match[2]}`};
     }
-    const collectionId = value => value === 'favorites' ? value : Number(value);
+    const collectionId = value => typeof value === 'string' && ['favorites','moments-highlights'].includes(value) ? value : Number(value);
     const collectionItem = item => ({id:`c:${item.id}`,parentId:'0',kind:'container',title:item.name});
     async function selectedCollection(id) {
         const result = await callCore('tv.collections',{});
@@ -72,7 +72,7 @@ export function createCatalogAdapter(callCore) {
     return {
         async browse(args) {
             // Core supplies authorized membership; DLNA identities stay in this plugin.
-            const named = /^c:(favorites|[1-9]\d*)(?::p:([1-9]\d*))?$/.exec(args.objectId);
+            const named = /^c:(favorites|moments-highlights|[1-9]\d*)(?::p:([1-9]\d*))?$/.exec(args.objectId);
             if (named) {
                 const id = collectionId(named[1]);
                 const selected = await selectedCollection(id);
@@ -115,7 +115,7 @@ export function createCatalogAdapter(callCore) {
             return {...result,total:result.total+1,items:first?[collection(folder[1]),...result.items.slice(0,args.count-1)]:result.items};
         },
         async image(id,profile) {
-            const named = /^c:(favorites|[1-9]\d*):p:([1-9]\d*)$/.exec(id);
+            const named = /^c:(favorites|moments-highlights|[1-9]\d*):p:([1-9]\d*)$/.exec(id);
             if (named) return callCore('tv.image',{id:`p:${named[2]}`,profile,collectionId:collectionId(named[1])});
             const original = id.startsWith('all:') ? (await alias(id)).original : id;
             return callCore('tv.image',{id:original,profile});
