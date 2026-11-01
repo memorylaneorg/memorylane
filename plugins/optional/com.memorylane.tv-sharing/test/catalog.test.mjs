@@ -83,3 +83,21 @@ test('exposes selected collections and Favorites as flat containers with scoped 
  member=false;await assert.rejects(adapter.image('c:7:p:42','display'));await assert.rejects(adapter.browse({...request('c:7:p:42'),flag:'BrowseMetadata'}));
  selected=false;await assert.rejects(adapter.browse(request('c:7')));
 });
+
+test('maps Moments highlights to a scoped dynamic collection',async()=>{
+ const calls=[];
+ const catalog=createCatalogAdapter(async(method,args)=>{
+  calls.push([method,args]);
+  if(method==='tv.config')return {enabled:true,apiVersion:2};
+  if(method==='tv.browse')return {items:[],total:0};
+  if(method==='tv.collections')return {items:[{id:'moments-highlights',name:'Moments highlights'}],updateId:1};
+  if(method==='tv.collection')return {items:[{id:42,title:'2024-01-01 Photo'}],total:1,updateId:1};
+  if(method==='tv.image')return {bytes:'test'};
+ });
+ const root=await catalog.browse({objectId:'0',flag:'BrowseDirectChildren',start:0,count:100});
+ assert.equal(root.items[0].id,'c:moments-highlights');
+ const page=await catalog.browse({objectId:'c:moments-highlights',flag:'BrowseDirectChildren',start:0,count:100});
+ assert.equal(page.items[0].id,'c:moments-highlights:p:42');
+ await catalog.image(page.items[0].id,'display');
+ assert.deepEqual(calls.at(-1),['tv.image',{id:'p:42',profile:'display',collectionId:'moments-highlights'}]);
+});

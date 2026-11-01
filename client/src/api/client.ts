@@ -1,4 +1,5 @@
 import type {
+  DirectoryBrowseDto, ApplePhotoPreparationDto,
   CollectionDto, CollectionId,
   TvSharingSettingsDto,
   TvSharingStatusDto,
@@ -139,6 +140,9 @@ export const api = {
     },
   },
   tvSharing: {
+    setPreviewProcessing: (enabled: boolean) => request<{settings:TvSharingSettingsDto}>("/api/tv-sharing/preview-processing", {method:"POST",body:JSON.stringify({enabled})}),
+    clearCache: () => request<{freedBytes:number}>("/api/tv-sharing/cache", {method:"DELETE"}),
+    retryPreviews: () => request<{requested:number}>("/api/tv-sharing/preview-retry", {method:"POST"}),
     get: () => request<TvSharingStatusDto>("/api/tv-sharing"),
     update: (settings: TvSharingSettingsDto) => request<{ settings: TvSharingSettingsDto; runtime: TvSharingStatusDto["runtime"] }>("/api/tv-sharing", { method: "PUT", body: JSON.stringify(settings) }),
     folders: (parentId?: number) => request<{id:number;name:string;parentId:number|null;hasChildren:number}[]>(`/api/tv-sharing/folders${parentId == null ? "" : `?parentId=${parentId}`}`),
@@ -167,6 +171,12 @@ export const api = {
     emptyTrash: (id: number) => request<{ ok: true }>(`/api/cleanup/trash/${id}`, { method: "DELETE", body: JSON.stringify({ confirm: true }) }),
   },
   plugins: {
+    selectApplePhoto: (rootId: number, uuid: string) => request<{mediaId: number}>(`/api/plugins/apple-photos/roots/${rootId}/select`, { method: "POST", body: JSON.stringify({uuid}) }),
+    applePreparation: () => request<ApplePhotoPreparationDto>("/api/plugins/apple-photos/preparation"),
+    configureApplePreparation: (settings: {paused?: boolean; cacheMiB?: number}) => request<ApplePhotoPreparationDto>("/api/plugins/apple-photos/preparation", {method: "PUT", body: JSON.stringify(settings)}),
+    startApplePreparation: () => request<ApplePhotoPreparationDto>("/api/plugins/apple-photos/preparation/start", {method: "POST"}),
+    retryApplePreparation: () => request<ApplePhotoPreparationDto>("/api/plugins/apple-photos/preparation/retry", {method: "POST"}),
+    clearApplePreparation: () => request<ApplePhotoPreparationDto>("/api/plugins/apple-photos/preparation/cache", {method: "DELETE"}),
     list: () => request<PluginDto[]>("/api/plugins"),
     setApplePhotosEnabled: (enabled: boolean) => request<PluginDto>("/api/plugins/apple-photos", { method: "PUT", body: JSON.stringify({ enabled }) }),
     applePhotosHealth: () => request<{ status: "ready" }>("/api/plugins/apple-photos/health"),
@@ -197,6 +207,7 @@ export const api = {
     version: () => request<VersionDto>("/api/settings/version"),
   },
   scanRoots: {
+    browseDirectories: (path?: string, offset=0) => request<DirectoryBrowseDto>("/api/scan-roots/directories?" + new URLSearchParams({...path ? {path} : {}, offset: String(offset)})),
     list: () => request<ScanRootDto[]>("/api/scan-roots"),
     folderPicker: () => request<{ available: boolean }>("/api/scan-roots/folder-picker"),
     chooseFolder: () => request<{ path: string | null }>("/api/scan-roots/folder-picker", { method: "POST" }),

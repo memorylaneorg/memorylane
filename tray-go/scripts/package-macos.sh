@@ -40,7 +40,7 @@ cp "$TRAY_ROOT/dist/MemoryLane" "$CONTENTS/MacOS/MemoryLane"
 cp "$TRAY_ROOT/assets/icon.icns" "$CONTENTS/Resources/MemoryLane.icns"
 cp -R "$TRAY_ROOT/runtime" "$CONTENTS/Resources/runtime"
 cat > "$CONTENTS/Info.plist" <<EOF
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.memorylane.desktop</string><key>CFBundleName</key><string>MemoryLane</string><key>CFBundleDisplayName</key><string>MemoryLane</string><key>CFBundleExecutable</key><string>MemoryLane</string><key>CFBundleIconFile</key><string>MemoryLane.icns</string><key>CFBundleShortVersionString</key><string>$VERSION</string><key>CFBundleVersion</key><string>$VERSION</string><key>LSUIElement</key><true/></dict></plist>
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.memorylane.desktop</string><key>CFBundleName</key><string>MemoryLane</string><key>CFBundleDisplayName</key><string>MemoryLane</string><key>CFBundleExecutable</key><string>MemoryLane</string><key>CFBundleIconFile</key><string>MemoryLane.icns</string><key>CFBundleShortVersionString</key><string>$VERSION</string><key>CFBundleVersion</key><string>$VERSION</string><key>NSPhotoLibraryUsageDescription</key><string>MemoryLane reads photos you explicitly favorite or add to a collection to prepare viewing copies. Your Photos library is not changed.</string><key>LSUIElement</key><true/></dict></plist>
 EOF
 
 if [[ "${SIGN_RELEASE:-}" == "1" ]]; then

@@ -7,5 +7,8 @@ import { EngagementRepo } from "../db/engagement-repo.js";
 export function decorateMedia(ctx: AppContext, items: MediaDto[]): MediaDto[] {
   new EngagementRepo(ctx.db).attachFavorites(items);
   ctx.stacks.attachStacks(items);
+  for (const item of items) {
+    if (item.sourceKind === "apple-photos" && ctx.applePreparation?.readPath(item.id)) item.thumbnailStatus = "done";
+  }
   return items;
 }

@@ -40,3 +40,21 @@ it("removes obsolete AI screenshot tags while preserving personal and imported o
       .toEqual({ model_version: "test-model:scene-v2" });
   } finally { db.close(); }
 });
+
+it("retires only filesystem AppleDouble entries while retaining originals and catalog associations", async () => {
+ const db = await createTestDb();
+ try {
+  const root=seedScanRoot(db),folder=seedFolder(db,root,"/library");
+  const sidecar=seedMedia(db,folder,root,{filename:"._photo.jpg",thumbnail_status:"failed"});
+  const original=seedMedia(db,folder,root,{filename:"photo.jpg"});
+  const hidden=seedMedia(db,folder,root,{filename:".photo.jpg"});
+  const apple=seedMedia(db,folder,root,{filename:"._apple.jpg"});
+  db.prepare("UPDATE media SET source_kind='apple-photos' WHERE id=?").run(apple);
+  db.prepare("INSERT INTO media_engagement(media_id,favorite) VALUES(?,1)").run(sidecar);
+  db.prepare("DELETE FROM schema_migrations WHERE name='042_ignore_appledouble_sidecars.sql'").run();
+  await runMigrations(db,":memory:",{info(){},warn(){},error(){}} as unknown as import("pino").Logger);
+  expect(db.prepare("SELECT status FROM media WHERE id=?").get(sidecar)).toEqual({status:"missing"});
+  for(const id of [original,hidden,apple]) expect(db.prepare("SELECT status FROM media WHERE id=?").get(id)).toEqual({status:"active"});
+  expect(db.prepare("SELECT favorite FROM media_engagement WHERE media_id=?").get(sidecar)).toEqual({favorite:1});
+ } finally {db.close();}
+});

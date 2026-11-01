@@ -52,6 +52,9 @@ in `server/src/server.ts`.
   `server/src/scanner/fingerprint.ts` uses size + rounded mtime for change detection,
   **not a content hash or move-stable identity**. `server/src/scanner/folder-repo.ts`
   owns folder persistence.
+- Folder scanning skips macOS AppleDouble `._*` sidecars before indexing or thumbnail
+  work. Migration 042 retires existing filesystem sidecar rows as missing, retaining
+  their catalog associations and leaving all source files untouched.
 - Unseen records in successfully covered scan roots are marked `missing`; a normal
   scan does not simply delete all old rows. A renamed path can create new records
   while the old ones become missing. Removing a scan root is different: its route
@@ -155,8 +158,17 @@ New folder scan roots start scanning immediately after creation. Additional fold
   the originating collection even if another share also grants the photo. Renaming
   retains links; deleting a collection prunes its saved selection on settings load.
 - Collection sharing includes future explicit additions (and future favorite stars),
-  independently of folder shares. TV still excludes video, Apple Photos, unavailable
-  sources and marked photos. See `docs/architecture/collections.md`.
+  independently of folder shares. TV excludes video, unavailable sources and marked photos. Prepared Apple Photos
+  stills are eligible only through selected collections/Favorites; Apple folders
+  and Moments never expose or automatically download cloud images. See `docs/architecture/collections.md`.
+
+### Folder selection
+
+- Library Add folder offers a Browse dialog via `client/src/components/FolderPicker.tsx`.
+  Authenticated `/api/scan-roots/directories` lists server-side directories only,
+  with bounded pages, Home/Computer/mounted-drive shortcuts and permission errors.
+  Choosing fills the path; Add folder still confirms addition. Browsing does not scan,
+  upload or mutate originals. Manual paths remain available for network locations.
 
 ### Photo viewer loading
 
@@ -346,6 +358,50 @@ are stored in the ignored test-library folder.
   `upgradePreviews` (default false). Web viewing never enqueues upgrades.
   Old previews remain until an atomic larger replacement succeeds. Version bumps
   invalidate TV derivatives; the Viewer polls progress and refreshes its source.
+- RAW preview storage has its own saved TV setting `previewCacheMiB` (default
+  4096 MiB). Settings shows usage, a disk-aware estimated increase, and failure
+  categories. Selecting a suggestion requires Save. Raising the limit resumes
+  budget-blocked jobs; originals and existing previews remain intact.
+- Migration 040 persists failure reasons and bulk retry requests. Authenticated
+  `/api/tv-sharing/preview-retry` requests one retry for currently eligible failed
+  or blocked RAWs, admitted in batches within the 1,000-job cap and resumed after
+  restart. Old failures have unknown causes until retried. Source failures require
+  manual retry; no automatic retry loop. Ready/limited previews are excluded from
+  bulk retry. Disk reserve remains 512 MiB.
+- Clear DLNA cache removes all TV delivery JPEGs through authenticated
+  `DELETE /api/tv-sharing/cache`. It reports freed space and preserves originals,
+  indexed thumbnails and shared RAW previews. In-flight old conversions cannot
+  refill the cleared cache; new TV requests regenerate images on demand.
 - New TV settings default to 4K/2048 MiB; saved settings are preserved.
   Settings Storage includes separate RAW preview and TV delivery cache sizes.
   See `docs/architecture/preview-upgrades.md` for bounds and decoder limitations.
+- Preview progress offers immediate persisted Pause/Resume (`POST /api/tv-sharing/preview-processing`).
+  Pauses stop the active decoder and preserve queued work. Removing a DLNA share cancels only
+  unfinished work no longer authorized by another share; collection membership changes are
+  rechecked during conversion. Settings recommends collections for explicit TV selections.
+- DLNA preview progress/failure counts cover only currently shared eligible RAWs (including
+  not-yet-admitted work); history from removed shares is retained but excluded. Storage usage
+  remains the actual total retained preview bytes.
+- Optional `momentsHighlights` TV setting exposes a library-wide, flat dynamic collection using
+  Balanced detection and up to five TV-eligible samples per moment. `moments/catalog.ts` shares
+  grouping inputs/sampling with web Moments; `moments/highlights.ts` caches stable membership
+  with 30-second refresh and catalog revision updates. Core also handles aliases forwarded by older collection-capable TV modules. Highlights RAW upgrades are prepared in bounded background batches when improvements are enabled; TV requests retain higher priority.
+
+### Explicit Apple Photos viewing copies
+
+- Adding Apple still photos to Favorites or collections queues local viewing copies,
+  independently of DLNA. Folder snapshots queue newly added indexed Apple photos.
+  Catalog sync, imported Favorites and Moments never enqueue downloads.
+- Core queue: `server/src/plugins/apple-photos/preparation.ts`, migration 041.
+  Settings/routes: `preparation-routes.ts`; cloud identity: `selection.ts`.
+  Separate 2048 MiB cache, one job at a time, 120-second deadline, 32 MiB output cap,
+  512 MiB disk reserve; explicit retries, persistent pause and clear-without-refill.
+- Optional helper `python/memorylane_photos/prepare.py` requests a PhotoKit viewing
+  image for one UUID in the System Photo Library. Requires updated helper capability
+  version 1 and macOS Photos permission. Explicit preparation may prompt for access;
+  catalog sync cannot. PhotoKit's own iCloud cache is outside core's budget.
+- Prepared copies remain selection/source/visibility gated for web and DLNA. DLNA
+  admits them only through shared collection/Favorites aliases, never Moments.
+  `ApplePhotoPreparationCard.tsx` exposes progress/storage controls and download
+  notice; Apple library tiles allow cloud stills to be explicitly selected.
+  See `docs/architecture/collections.md` for lifecycle and native QA limits.

@@ -255,6 +255,7 @@ export interface AppleBrowseItemDto {
   mediaId: number | null;
   thumbnailVersion: number;
   available: boolean;
+  mediaType: "image" | "raw" | "video" | null;
   media?: MediaDto | null;
 }
 
@@ -842,9 +843,11 @@ export interface TvSharingSettingsDto {
   quality: "1080p" | "4k";
   cacheMiB: number;
   upgradePreviews: boolean;
+  previewCacheMiB?: number;
+  momentsHighlights?: boolean;
 }
 export interface TvSharingStatusDto {
-  diagnostics: { sharedPhotos: number; cacheBytes: number; conversionFailures: number; previews?: {queued:number;running:number;ready:number;limited:number;failed:number} };
+  diagnostics: { sharedPhotos: number; cacheBytes: number; conversionFailures: number; previews?: {queued:number;running:number;ready:number;limited:number;failed:number;blocked?:number}; previewStorage?: {usageBytes:number;limitMiB:number;freeBytes:number;remaining:number;suggestedMiB:number|null;retryPending:number;failures:{code:string;count:number}[]} };
   installed: boolean;
   settings: TvSharingSettingsDto;
   interfaces: { name: string; address: string }[];
@@ -853,3 +856,26 @@ export interface TvSharingStatusDto {
 
 export type CollectionId = number | "favorites";
 export interface CollectionDto { id: CollectionId; name: string; count: number; builtin: boolean; contains?: boolean }
+
+export interface ApplePhotoPreparationDto {
+  paused: boolean;
+  cacheMiB: number;
+  usageBytes: number;
+  queued: number;
+  running: number;
+  ready: number;
+  failed: number;
+  blocked: number;
+  lastError: string | null;
+  existing: number;
+  batchLimit: number;
+  helperRunning: boolean;
+}
+
+export interface DirectoryBrowseDto {
+  path: string;
+  parent: string | null;
+  folders: {name: string; path: string}[];
+  locations: {name: "home" | "computer" | "drives"; path: string}[];
+  nextOffset: number | null;
+}

@@ -86,7 +86,9 @@ export async function registerMediaRoutes(app: FastifyInstance, ctx: AppContext)
     const exists = visibleSourceById(id);
     if (!exists) return reply.code(404).send({ error: "Media not found" });
 
-    return reply.send(engagement.setFavorite(id, parsed.data.favorite));
+    const result=engagement.setFavorite(id, parsed.data.favorite);
+    if (parsed.data.favorite && exists.source_kind === 'apple-photos') ctx.applePreparation?.enqueue([id]);
+    return reply.send(result);
   });
 
   // Shown/viewed are fire-and-forget engagement signals from the photo
@@ -115,6 +117,12 @@ export async function registerMediaRoutes(app: FastifyInstance, ctx: AppContext)
   app.get("/api/media/:id/file", { preHandler: app.requireAuth }, async (request, reply) => {
     const id = Number((request.params as { id: string }).id);
     const media = resolveVerifiedMedia(ctx, id);
+    const prepared = ctx.applePreparation?.readPath(id);
+    if (prepared && isApplePhotosEnabled(db) && (!media || !fs.existsSync(media.absolute_path))) {
+      reply.header("Cache-Control", "no-store");
+      reply.header("X-MemoryLane-Source", "derivative");
+      return streamFile(request,reply,prepared,"image/jpeg");
+    }
     if (!media) return reply.code(404).send({ error: "Media not found" });
     if (!fs.existsSync(media.absolute_path)) return reply.code(404).send({ error: "File missing on disk" });
 
@@ -127,6 +135,13 @@ export async function registerMediaRoutes(app: FastifyInstance, ctx: AppContext)
   });
 
   app.get("/api/media/:id/thumbnail", { preHandler: app.requireAuth }, async (request, reply) => {
+    const preparedId=Number((request.params as {id:string}).id);
+    const prepared=ctx.applePreparation?.readPath(preparedId);
+    if (prepared && isApplePhotosEnabled(db)) {
+      reply.header("Cache-Control", "no-store");
+      reply.header("X-MemoryLane-Source", "derivative");
+      return streamFile(request,reply,prepared,"image/jpeg");
+    }
     const id = Number((request.params as { id: string }).id);
     const media = resolveVerifiedMedia(ctx, id, true);
     if (!media) return reply.code(404).send({ error: "Media not found" });
@@ -157,6 +172,13 @@ export async function registerMediaRoutes(app: FastifyInstance, ctx: AppContext)
   // media/thumbnail-generator.ts. Not generated for
   // standard images (they use /file at full original resolution instead).
   app.get("/api/media/:id/preview", { preHandler: app.requireAuth }, async (request, reply) => {
+    const preparedId=Number((request.params as {id:string}).id);
+    const prepared=ctx.applePreparation?.readPath(preparedId);
+    if (prepared && isApplePhotosEnabled(db)) {
+      reply.header("Cache-Control", "no-store");
+      reply.header("X-MemoryLane-Source", "derivative");
+      return streamFile(request,reply,prepared,"image/jpeg");
+    }
     const id = Number((request.params as { id: string }).id);
     const media = resolveVerifiedMedia(ctx, id, true);
     if (!media) return reply.code(404).send({ error: "Media not found" });
