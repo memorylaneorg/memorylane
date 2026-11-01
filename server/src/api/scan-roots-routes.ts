@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import {
   createScanRootRequestSchema,
   updateScanRootRequestSchema,
@@ -32,6 +32,26 @@ interface MediaTypeAggRow {
   size: number | null;
   pending: number;
   failed: number;
+}
+
+const LOOPBACK_ADDRESSES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+
+function desktopFolderPickerAvailable(request: FastifyRequest): boolean {
+  return LOOPBACK_ADDRESSES.has(request.ip)
+    && !!process.env.MEMORYLANE_DESKTOP_CONTROL_URL
+    && !!process.env.MEMORYLANE_DESKTOP_TOKEN;
+}
+
+async function selectDesktopFolder(): Promise<string | null> {
+  const base = process.env.MEMORYLANE_DESKTOP_CONTROL_URL!;
+  const token = process.env.MEMORYLANE_DESKTOP_TOKEN!;
+  const response = await fetch(`${base}/select-folder`, {
+    method: "POST",
+    headers: { "x-memorylane-desktop-token": token },
+  });
+  if (!response.ok) throw new Error(`Desktop folder picker returned ${response.status}`);
+  const body = await response.json() as { path?: unknown };
+  return typeof body.path === "string" && body.path ? body.path : null;
 }
 
 function getScanRootStats(db: Database.Database, scanRootId: number): ScanRootStatsDto {
@@ -109,6 +129,21 @@ export async function registerScanRootRoutes(app: FastifyInstance, ctx: AppConte
     const rows = db.prepare("SELECT * FROM scan_roots ORDER BY sort_order, id").all() as ScanRootRow[];
     const fingerprint = browseCache(db).fingerprint();
     return reply.send(rows.map((row) => toDto(db, row, fingerprint)));
+  });
+
+  app.get("/api/scan-roots/folder-picker", { preHandler: app.requireAuth }, async (request, reply) => {
+    return reply.send({ available: desktopFolderPickerAvailable(request) });
+  });
+
+  app.post("/api/scan-roots/folder-picker", { preHandler: app.requireAuth }, async (request, reply) => {
+    if (!desktopFolderPickerAvailable(request)) {
+      return reply.code(409).send({ error: "Folder selection is available only in the desktop app on this computer" });
+    }
+    try {
+      return reply.send({ path: await selectDesktopFolder() });
+    } catch {
+      return reply.code(503).send({ error: "Could not open the folder picker" });
+    }
   });
 
   app.post("/api/scan-roots", { preHandler: app.requireAuth }, async (request, reply) => {

@@ -6,7 +6,34 @@ import (
 	"encoding/base64"
 	"runtime"
 	"testing"
+	"time"
 )
+
+func TestUpdateScheduleChecksImmediatelyThenOnTicks(t *testing.T) {
+	ticks := make(chan time.Time, 2)
+	ticks <- time.Now()
+	close(ticks)
+	calls := 0
+	runUpdateSchedule(func() error { calls++; return nil }, ticks)
+	if calls != 2 {
+		t.Fatalf("update checks = %d, want immediate check plus one scheduled check", calls)
+	}
+}
+
+func TestFirstRunDefaultsEnableLaunchAtLogin(t *testing.T) {
+	cfg := config{Port: 4280, OpenBrowserAtLaunch: true}
+	setValue, saved := false, false
+	err := applyFirstRunDefaults(&cfg, func(value bool) error { setValue = value; return nil }, func(got config) error {
+		saved = true
+		if !got.LaunchAtLogin {
+			t.Fatal("saved config did not enable launch at login")
+		}
+		return nil
+	})
+	if err != nil || !setValue || !saved || !cfg.LaunchAtLogin {
+		t.Fatalf("first-run defaults failed: err=%v set=%v saved=%v cfg=%+v", err, setValue, saved, cfg)
+	}
+}
 
 func TestCompareVersions(t *testing.T) {
 	cases := []struct {

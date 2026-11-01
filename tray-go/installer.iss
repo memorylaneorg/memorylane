@@ -42,5 +42,17 @@ Name: "{userdesktop}\MemoryLane"; Filename: "{app}\MemoryLane.exe"; IconFilename
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 
+[Registry]
+; Make launch-at-login the fresh-install default even if the user chooses not
+; to start MemoryLane on the final installer page. Once desktop-config.json
+; exists, upgrades leave the person's tray-menu choice alone.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MemoryLane"; ValueData: """{app}\MemoryLane.exe"""; Flags: uninsdeletevalue; Check: IsFirstDesktopInstall
+
 [Run]
 Filename: "{app}\MemoryLane.exe"; Description: "Start MemoryLane"; Flags: nowait postinstall skipifsilent
+
+[Code]
+function IsFirstDesktopInstall: Boolean;
+begin
+  Result := not FileExists(ExpandConstant('{userappdata}\MemoryLane\desktop-config.json'));
+end;

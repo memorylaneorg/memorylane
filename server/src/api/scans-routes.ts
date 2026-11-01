@@ -32,6 +32,23 @@ export async function registerScanRoutes(app: FastifyInstance, ctx: AppContext):
     return reply.code(202).send({ ok: true });
   });
 
+  // Folder creation uses this endpoint so a first folder starts immediately
+  // and later additions wait behind the active run instead of being rejected.
+  app.post("/api/scans/queue", { preHandler: app.requireAuth }, async (request, reply) => {
+    const parsed = runScanRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success || parsed.data.scanRootId === undefined) {
+      return reply.code(400).send({ error: "A scan folder is required" });
+    }
+    const { scanRootId } = parsed.data;
+    const root = db.prepare("SELECT enabled FROM scan_roots WHERE id = ?").get(scanRootId) as
+      | { enabled: number }
+      | undefined;
+    if (!root) return reply.code(404).send({ error: "Scan root not found" });
+    if (!root.enabled) return reply.code(400).send({ error: "Scan root is disabled" });
+    const result = scanner.queueScan("manual", scanRootId);
+    return reply.code(202).send({ ok: true, ...result });
+  });
+
   app.get("/api/scans/status", { preHandler: app.requireAuth }, async (_request, reply) => {
     return reply.send(scanner.getStatus());
   });

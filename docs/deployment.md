@@ -102,7 +102,7 @@ Use `darwin-arm64` on Apple Silicon. Restart the server after changing these set
 
 ## Desktop tray development
 
-The Go tray contains no webview. It supervises the bundled Node server, manages launch at login and updates, and opens the default browser.
+The Go tray contains no webview. It supervises the bundled Node server, manages launch at login and updates, opens native folder selection for the local browser, and opens the default browser. A fresh desktop install enables launch at login by default; the tray menu remains the opt-out and existing choices survive upgrades. Core update checks run immediately when the desktop app starts, then every 24 hours while it remains running.
 
 ```bash
 npm run build

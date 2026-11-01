@@ -83,6 +83,7 @@ const THUMBNAIL_QUEUE_FLUSH_SIZE = 200;
 
 export class ScannerService {
   private running = false;
+  private queuedScans: Array<{ trigger: ScanTrigger; scanRootId: number }> = [];
   private scheduleTimer: NodeJS.Timeout | null = null;
   private finishedListeners: (() => void)[] = [];
   private appleRootSync: ((rootId: number) => Promise<void>) | null = null;
@@ -99,6 +100,30 @@ export class ScannerService {
 
   isRunning(): boolean {
     return this.running;
+  }
+
+  queueScan(trigger: ScanTrigger, scanRootId: number): { queued: boolean } {
+    if (!this.running) {
+      void this.runScan(trigger, scanRootId).catch((err) => {
+        this.logger.error({ err, scanRootId }, "Queued scan failed to start");
+        this.startNextQueuedScan();
+      });
+      return { queued: false };
+    }
+    if (!this.queuedScans.some((scan) => scan.scanRootId === scanRootId)) {
+      this.queuedScans.push({ trigger, scanRootId });
+    }
+    return { queued: true };
+  }
+
+  private startNextQueuedScan(): void {
+    if (this.running) return;
+    const next = this.queuedScans.shift();
+    if (!next) return;
+    void this.runScan(next.trigger, next.scanRootId).catch((err) => {
+      this.logger.error({ err, scanRootId: next.scanRootId }, "Queued scan failed to start");
+      this.startNextQueuedScan();
+    });
   }
 
   // Fired after every run (completed or failed) - the AnalysisWorker uses
@@ -123,6 +148,7 @@ export class ScannerService {
       lastRun: lastRun ?? null,
       lastSuccessfulRun: lastSuccessfulRun ? toScanRunDto(lastSuccessfulRun) : null,
       nextScheduledAt: null,
+      queuedScanRootIds: this.queuedScans.map((scan) => scan.scanRootId),
     };
   }
 
@@ -315,6 +341,7 @@ export class ScannerService {
     } finally {
       clearInterval(progressTimer);
       this.running = false;
+      this.startNextQueuedScan();
       for (const cb of this.finishedListeners) {
         try {
           cb();

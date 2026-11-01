@@ -176,6 +176,7 @@ func (s *supervisor) waitForState(want string, timeout time.Duration) bool {
 
 func onReady() {
 	cfg := loadConfig()
+	initializeFirstRunDefaults(&cfg)
 	sup.port = cfg.Port
 	// Opens exactly once per launch, the first time the server actually
 	// reaches "running" - not on every state change (a crash-and-manual-relaunch
@@ -453,6 +454,25 @@ func loadConfig() config {
 		}
 	}
 	return cfg
+}
+
+// Launching at login is opt-out for a new desktop installation. The config
+// file is the first-run marker: once it exists, never overwrite the person's
+// choice (including when a later installer updates the app).
+func initializeFirstRunDefaults(cfg *config) {
+	configPath := filepath.Join(appDataDir(), "desktop-config.json")
+	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+		return
+	}
+	_ = applyFirstRunDefaults(cfg, setLaunchAtLogin, saveConfig)
+}
+
+func applyFirstRunDefaults(cfg *config, setLogin func(bool) error, save func(config) error) error {
+	if err := setLogin(true); err != nil {
+		return err
+	}
+	cfg.LaunchAtLogin = true
+	return save(*cfg)
 }
 
 func saveConfig(cfg config) error {

@@ -76,14 +76,23 @@ it("rejects a preexisting trash group and a tampered manifest", async () => {
   const f = await fixture();
   try {
     const group = path.join(f.dir, "_MemoryLane-Trash", String(f.image));
-    fs.mkdirSync(path.dirname(group), { recursive: true });
-    fs.symlinkSync(f.dir, group);
+    fs.mkdirSync(group, { recursive: true });
     await expect(f.service.move(f.image)).rejects.toThrow(/trash/i);
-    fs.unlinkSync(group);
+    fs.rmSync(group, { recursive: true });
     await f.service.move(f.image);
     f.db.prepare("UPDATE trash_entries SET files_json = ? WHERE media_id = ?")
       .run(JSON.stringify([{ original: f.files[0], trashed: path.join(f.dir, "unrelated.txt"), mediaId: f.image }]), f.image);
     await expect(f.service.empty(f.image)).rejects.toThrow(/manifest|trash path/i);
+  } finally { f.close(); }
+});
+
+it.skipIf(process.platform === "win32")("rejects a symlinked trash group", async () => {
+  const f = await fixture();
+  try {
+    const group = path.join(f.dir, "_MemoryLane-Trash", String(f.image));
+    fs.mkdirSync(path.dirname(group), { recursive: true });
+    fs.symlinkSync(f.dir, group);
+    await expect(f.service.move(f.image)).rejects.toThrow(/trash/i);
   } finally { f.close(); }
 });
 

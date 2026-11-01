@@ -44,12 +44,34 @@ func setLaunchAtLogin(enabled bool) error {
 	if err != nil {
 		return err
 	}
+	// If someone launches directly from the mounted installer image, defer the
+	// first-run default until they open the copy in Applications. Otherwise the
+	// login item would point at a volume that disappears after ejecting the DMG.
+	if strings.HasPrefix(filepath.Clean(executable), "/Volumes/") {
+		return fmt.Errorf("cannot enable launch at login from a mounted disk image")
+	}
 	if err = os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
 	plist := `<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>Label</key><string>com.memorylane.desktop</string><key>ProgramArguments</key><array><string>` + html.EscapeString(executable) + `</string></array><key>RunAtLoad</key><true/></dict></plist>`
 	return os.WriteFile(path, []byte(plist), 0600)
 }
+
+func selectFolder() (string, bool, error) {
+	output, err := exec.Command("osascript", "-e", `POSIX path of (choose folder with prompt "Choose a photo folder for MemoryLane")`).CombinedOutput()
+	if err != nil {
+		if strings.Contains(string(output), "User canceled") || strings.Contains(string(output), "(-128)") {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	selected := strings.TrimSpace(string(output))
+	if len(selected) > 1 {
+		selected = strings.TrimSuffix(selected, "/")
+	}
+	return selected, selected != "", nil
+}
+
 func openBrowser(raw string) error {
 	if !validLocalURL(raw) {
 		return fmt.Errorf("refusing non-local URL")

@@ -43,8 +43,9 @@ export async function createTestApp(opts: { provider?: AiProvider | null } = {})
   const session = sessions.create(userId);
   const scanner = {
     isRunning: () => false,
+    queueScan: () => ({ queued: false }),
     onScanFinished() {},
-    getStatus: () => ({ running: false }),
+    getStatus: () => ({ running: false, queuedScanRootIds: [] }),
     getHistory: () => [],
   } as unknown as ScannerService;
   const provider = opts.provider ?? null;

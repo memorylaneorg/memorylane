@@ -198,6 +198,8 @@ export const api = {
   },
   scanRoots: {
     list: () => request<ScanRootDto[]>("/api/scan-roots"),
+    folderPicker: () => request<{ available: boolean }>("/api/scan-roots/folder-picker"),
+    chooseFolder: () => request<{ path: string | null }>("/api/scan-roots/folder-picker", { method: "POST" }),
     create: (body: CreateScanRootRequest) => request<ScanRootDto>("/api/scan-roots", { method: "POST", body: JSON.stringify(body) }),
     update: (id: number, body: UpdateScanRootRequest) => request<ScanRootDto>(`/api/scan-roots/${id}`, { method: "PUT", body: JSON.stringify(body) }),
     remove: (id: number) => request<void>(`/api/scan-roots/${id}`, { method: "DELETE" }),
@@ -211,6 +213,11 @@ export const api = {
       request<{ ok: true }>("/api/scans/run", {
         method: "POST",
         body: scanRootId !== undefined ? JSON.stringify({ scanRootId }) : undefined,
+      }),
+    queue: (scanRootId: number) =>
+      request<{ ok: true; queued: boolean }>("/api/scans/queue", {
+        method: "POST",
+        body: JSON.stringify({ scanRootId }),
       }),
     status: () => request<ScanStatusDto>("/api/scans/status"),
     history: () => request<ScanRunDto[]>("/api/scans/history"),

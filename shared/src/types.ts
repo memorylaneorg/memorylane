@@ -403,6 +403,8 @@ export interface ScanStatusDto {
   lastRun: ScanRunDto | null;
   lastSuccessfulRun: ScanRunDto | null;
   nextScheduledAt: string | null;
+  // Folders explicitly queued behind the current run, in scan order.
+  queuedScanRootIds: number[];
 }
 
 export interface RunScanRequest {

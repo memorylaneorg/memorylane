@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronUp, ChevronDown, GripVertical } from "lucide-react";
+import { ChevronUp, ChevronDown, FolderOpen, GripVertical } from "lucide-react";
 import type { ScanRootDto, ScanStatusDto, ScanRunDto } from "@memorylane/shared";
 import { api, ApiError } from "../api/client";
 import { useConfirm } from "./ConfirmDialog";
@@ -70,15 +70,18 @@ export default function ScanFoldersManager({
   const [openTranscodeRootId, setOpenTranscodeRootId] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [draggedRootId, setDraggedRootId] = useState<number | null>(null);
+  const [folderPickerAvailable, setFolderPickerAvailable] = useState(false);
+  const [choosingFolder, setChoosingFolder] = useState(false);
   const { confirm } = useConfirm();
   const { t } = useTranslation();
 
   useEffect(() => {
     void (async () => {
-      const [roots, st] = await Promise.all([api.scanRoots.list(), api.scans.status()]);
+      const [roots, st, picker] = await Promise.all([api.scanRoots.list(), api.scans.status(), api.scanRoots.folderPicker()]);
       setScanRoots(roots);
       onRootsChange?.(roots);
       setStatus(st);
+      setFolderPickerAvailable(picker.available);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -109,16 +112,43 @@ export default function ScanFoldersManager({
   const addScanRoot = async (selectedPath = newPath) => {
     if (!selectedPath.trim()) return;
     setError(null);
+    let root: ScanRootDto;
     try {
-      const root = await api.scanRoots.create({ path: selectedPath.trim() });
-      setScanRoots((prev) => {
-        const next = [...prev, root];
-        onRootsChange?.(next);
-        return next;
-      });
-      setNewPath("");
+      root = await api.scanRoots.create({ path: selectedPath.trim() });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("scanning.addFailed"));
+      return;
+    }
+    setScanRoots((prev) => {
+      const next = [...prev, root];
+      onRootsChange?.(next);
+      return next;
+    });
+    setNewPath("");
+    try {
+      await api.scans.queue(root.id);
+      const nextStatus = await api.scans.status();
+      setStatus(nextStatus);
+      if (!nextStatus.running) {
+        const roots = await api.scanRoots.list();
+        setScanRoots(roots);
+        onRootsChange?.(roots);
+      }
+    } catch {
+      setError(t("scanning.queueFailed"));
+    }
+  };
+
+  const chooseFolder = async () => {
+    setError(null);
+    setChoosingFolder(true);
+    try {
+      const { path } = await api.scanRoots.chooseFolder();
+      if (path) await addScanRoot(path);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("scanning.chooseFailed"));
+    } finally {
+      setChoosingFolder(false);
     }
   };
 
@@ -196,6 +226,19 @@ export default function ScanFoldersManager({
       <p id="scan-folder-path-help" className="mb-2 text-xs text-muted">
         {t("scanning.pathHelp")}
       </p>
+      {folderPickerAvailable && (
+        <div className="mb-3 flex flex-col items-start gap-2">
+          <button onClick={() => void chooseFolder()} disabled={choosingFolder} className={`${accentButtonClass} inline-flex items-center gap-2`}>
+            <FolderOpen size={18} aria-hidden />
+            {choosingFolder ? t("scanning.choosingFolder") : t("scanning.chooseFolder")}
+          </button>
+          {choosingFolder && (
+            <p role="status" className="max-w-xl rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-ink">
+              {t("scanning.folderDialogOpen")}
+            </p>
+          )}
+        </div>
+      )}
       <div className="mb-3 flex flex-wrap gap-2">
         <input
           id="scan-folder-path"
@@ -270,6 +313,9 @@ export default function ScanFoldersManager({
               <div className="mr-auto flex min-w-0 flex-col gap-0.5">
                 <span className={`truncate ${root.enabled ? "text-ink" : "text-muted"}`}>{root.path}</span>
                 <span className="text-xs text-muted">{scanRootSummary(root, t)}</span>
+                {status?.queuedScanRootIds?.includes(root.id) && (
+                  <span className="text-xs font-medium text-accent">{t("scanning.queued")}</span>
+                )}
               </div>
               <span className="flex shrink-0 items-center gap-2">
                 <button

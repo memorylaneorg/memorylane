@@ -96,6 +96,9 @@ in `server/src/server.ts`.
 | Apple Photos | Optional local macOS catalog integration: `server/src/plugins/apple-photos/` and `plugins/optional/com.memorylane.apple-photos/`; source visibility also lives in `server/src/plugins/registry.ts`. |
 | Settings/auth/update | `server/src/db/settings-repo.ts`, settings/auth/core-update routes, `server/src/auth/`, `client/src/pages/SettingsPage.tsx`, `server/src/plugin-platform/`, and tray updater. |
 
+Desktop installs enable launch at login on first run and preserve the saved opt-out on upgrades. The tray checks for core updates immediately at startup, then every 24 hours. Local authenticated browser sessions can open the OS folder picker through the token-protected tray control channel; typed scan-root paths remain available for NAS and server folders.
+New folder scan roots start scanning immediately after creation. Additional folders added during an active scan enter the scanner's in-memory per-folder queue and are exposed through `ScanStatusDto.queuedScanRootIds`; manual Scan Now retains its existing already-running guard.
+
 ### Optional TV photo sharing (development)
 
 - `plugins/optional/com.memorylane.tv-sharing/` implements generic UPnP AV photo

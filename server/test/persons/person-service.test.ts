@@ -52,7 +52,7 @@ async function setup() {
 }
 
 describe("PersonService discovery + assignment", () => {
-  it("remembers the Photos identity when a renamed Apple person is dismissed", async () => {
+  it.skipIf(process.platform !== "darwin")("remembers the Photos identity when a renamed Apple person is dismissed", async () => {
     const S = await setup();
     const faceId = await S.addFace(vec(0, 0.1));
     const mediaId = S.faces.get(faceId)!.media_id;

@@ -57,7 +57,7 @@ describe("Photos library scanner boundary", () => {
     }
   });
 
-  it("delegates an enabled Apple root to catalogue sync without walking its package", async () => {
+  it.skipIf(process.platform !== "darwin")("delegates an enabled Apple root to catalogue sync without walking its package", async () => {
     const db = await createTestDb();
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "memorylane-photos-delegate-"));
     const library = path.join(root, "Pictures.photoslibrary");

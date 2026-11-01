@@ -53,6 +53,44 @@ func setLaunchAtLogin(enabled bool) error {
 	return cmd.Run()
 }
 
+func selectFolder() (string, bool, error) {
+	const script = `$OutputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.Description = 'Choose a photo folder for MemoryLane'
+$dialog.ShowNewFolderButton = $false
+$owner = New-Object System.Windows.Forms.Form
+$owner.Text = 'MemoryLane folder chooser'
+$owner.ShowInTaskbar = $false
+$owner.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedToolWindow
+$owner.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+$owner.Location = New-Object System.Drawing.Point(-32000, -32000)
+$owner.Size = New-Object System.Drawing.Size(1, 1)
+$owner.Opacity = 0
+$owner.TopMost = $true
+try {
+    $owner.Show()
+    $owner.Activate()
+    $result = $dialog.ShowDialog($owner)
+    if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+        [Console]::Out.Write($dialog.SelectedPath)
+    }
+} finally {
+    $owner.Close()
+    $owner.Dispose()
+    $dialog.Dispose()
+}`
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-STA", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	output, err := cmd.Output()
+	if err != nil {
+		return "", false, err
+	}
+	selected := string(output)
+	return selected, selected != "", nil
+}
+
 func openBrowser(raw string) error {
 	if !validLocalURL(raw) {
 		return fmt.Errorf("refusing non-local URL")

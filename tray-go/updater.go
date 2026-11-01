@@ -98,11 +98,17 @@ func (u *coreUpdater) start() {
 		return
 	}
 	u.setMenu("Check for Updates", true)
-	_ = u.check()
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
-	for range ticker.C {
-		_ = u.check()
+	runUpdateSchedule(u.check, ticker.C)
+}
+
+func runUpdateSchedule(check func() error, ticks <-chan time.Time) {
+	// The first check belongs to app startup (including the launch immediately
+	// after an install). The 24-hour ticker only schedules subsequent checks.
+	_ = check()
+	for range ticks {
+		_ = check()
 	}
 }
 
@@ -245,6 +251,22 @@ func startUpdateControlServer(u *coreUpdater, s *supervisor, token string) (stri
 		w.WriteHeader(http.StatusAccepted)
 		writeStatus(w)
 		go u.activate(s, tray)
+	})
+	mux.HandleFunc("/select-folder", func(w http.ResponseWriter, r *http.Request) {
+		if !authorized(w, r) || r.Method != http.MethodPost {
+			return
+		}
+		selected, ok, err := selectFolder()
+		if err != nil {
+			http.Error(w, `{"error":"Folder picker failed"}`, http.StatusInternalServerError)
+			return
+		}
+		if !ok {
+			selected = ""
+		}
+		_ = json.NewEncoder(w).Encode(struct {
+			Path string `json:"path"`
+		}{Path: selected})
 	})
 	server := &http.Server{Handler: mux, ReadHeaderTimeout: 3 * time.Second}
 	go func() { _ = server.Serve(listener) }()
